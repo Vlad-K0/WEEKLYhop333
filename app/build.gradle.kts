@@ -71,4 +71,7 @@ dependencies {
     implementation("androidx.room:room-runtime:$room_version")
     implementation("androidx.room:room-ktx:$room_version") // Для корутин
     kapt("androidx.room:room-compiler:$room_version") // Обработчик аннотаций
+
+    // build.gradle.kts (Module: app) - в блоке dependencies { ... }
+    implementation("androidx.navigation:navigation-compose:2.7.7") // Убедитесь, что версия актуальна
 }

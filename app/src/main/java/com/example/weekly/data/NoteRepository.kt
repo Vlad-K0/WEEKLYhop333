@@ -3,12 +3,11 @@ package com.example.weekly.data
 import kotlinx.coroutines.flow.Flow
 
 class NoteRepository(private val noteDao: NoteDao) {
-
     val allNotes: Flow<List<Note>> = noteDao.getAllNotes()
 
-    // Функция для вставки или обновления
+    // ⭐️ ЗАМЕНА insert/update на одну функцию upsert
     suspend fun upsert(note: Note) {
-        noteDao.insert(note)
+        noteDao.upsert(note)
     }
 
     suspend fun delete(note: Note) {
