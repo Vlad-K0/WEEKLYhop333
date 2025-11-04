@@ -14,16 +14,19 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -33,8 +36,32 @@ import com.example.weekly.data.*
 import com.example.weekly.ui.theme.WEEKLYTheme
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
+import java.util.Locale
+
+// ******************************************************
+// КОНСТАНТЫ И ENUM
+// ******************************************************
+
+private val LOCALE_RU = Locale.forLanguageTag("ru-RU")
+
+@RequiresApi(Build.VERSION_CODES.O)
+private val DATE_FORMAT_DISPLAY = DateTimeFormatter.ofPattern("dd.MM")
+@RequiresApi(Build.VERSION_CODES.O)
+private val DATE_FORMAT_ISO = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+
+// Тип элемента, который мы добавляем
+enum class NoteType {
+    TASK, // Дело (со временем)
+    NOTE // Заметка (без времени)
+}
+
+// ******************************************************
+// МАРШРУТЫ НАВИГАЦИИ (Routes)
+// ******************************************************
+
 
 // ******************************************************
 // ГЛАВНАЯ ACTIVITY И NAV HOST
@@ -44,14 +71,19 @@ class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent {
-            val application = LocalContext.current.applicationContext as WeeklyApplication
 
+        // Получаем Application и Repository
+        val application = application as WeeklyApplication
+
+        setContent {
             WEEKLYTheme {
+                val navController = rememberNavController()
+
                 WeeklyNavHost(
                     noteViewModel = viewModel(
                         factory = NoteViewModelFactory(application.repository)
-                    )
+                    ),
+                    navController = navController
                 )
             }
         }
@@ -61,114 +93,149 @@ class MainActivity : ComponentActivity() {
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WeeklyNavHost(noteViewModel: NoteViewModel) {
-    val navController = rememberNavController()
+fun WeeklyNavHost(noteViewModel: NoteViewModel, navController: NavHostController) {
 
-    // ⭐️ Получаем сгруппированные заметки
-    val notesGroupedByDay by noteViewModel.notesGroupedByDay.collectAsState()
+    val groupedNotes by noteViewModel.notesGroupedByDay.collectAsState()
 
-    Scaffold { paddingValues ->
-        NavHost(
-            navController = navController,
-            startDestination = Screen.Planner.route,
-            modifier = Modifier.padding(paddingValues)
-        ) {
-            // 1. Главный экран: Список дней (PlannerScreen)
-            composable(Screen.Planner.route) {
-                DayListScreen(
-                    onDayClick = { day ->
-                        navController.navigate(Screen.DayDetail.createRoute(day))
-                    },
-                    groupedNotes = notesGroupedByDay // ⭐️ Передаем данные
-                )
-            }
+    NavHost(
+        navController = navController,
+        startDestination = Screen.DayList.route
+    ) {
+        composable(Screen.DayList.route) {
+            DayListScreen(
+                groupedNotes = groupedNotes,
+                onDayClick = { dayISO ->
+                    navController.navigate(Screen.DayDetail.createRoute(dayISO))
+                }
+            )
+        }
 
-            // 2. Экран деталей дня: Заметки
-            composable(
-                route = Screen.DayDetail.route,
-                arguments = listOf(navArgument("day") { type = NavType.StringType })
-            ) { backStackEntry ->
-                val day = backStackEntry.arguments?.getString("day") ?: return@composable
+        composable(
+            route = Screen.DayDetail.route,
+            arguments = listOf(navArgument("day") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val selectedDay = backStackEntry.arguments?.getString("day") ?: LocalDate.now().format(DATE_FORMAT_ISO)
 
-                DayDetailScreen(
-                    selectedDay = day,
-                    noteViewModel = noteViewModel,
-                    onBack = { navController.popBackStack() }
-                )
-            }
+            DayDetailScreen(
+                selectedDay = selectedDay,
+                noteViewModel = noteViewModel,
+                onBack = { navController.popBackStack() }
+            )
         }
     }
 }
 
-// ⭐️ ЭКРАН 1: СПИСОК ДНЕЙ (ОБНОВЛЕН ДЛЯ ОТОБРАЖЕНИЯ ДАТЫ И АНОНСА)
+// ******************************************************
+// ЭКРАН 1: СПИСОК ДНЕЙ
+// ******************************************************
+
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DayListScreen(
     onDayClick: (String) -> Unit,
-    groupedNotes: Map<String, List<Note>> // ⭐️ Принимаем сгруппированные заметки
+    groupedNotes: Map<String, List<Note>>
 ) {
-    val daysOfWeek = listOf("Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье")
+    var currentWeekStart by remember {
+        mutableStateOf(LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)))
+    }
 
-    // Определяем начало текущей недели (понедельник)
-    val startOfWeek = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    val weekEnd = currentWeekStart.plusDays(6)
+    val weekRange = "${currentWeekStart.format(DATE_FORMAT_DISPLAY)} – ${weekEnd.format(DATE_FORMAT_DISPLAY)}"
 
-    // Создаем список пар (ДеньНедели, Дата) для текущей недели
-    val weekDaysWithDates = remember {
-        daysOfWeek.mapIndexed { index, dayName ->
-            dayName to startOfWeek.plusDays(index.toLong())
+    val weekDaysWithDates = remember(currentWeekStart) {
+        (0L..6L).map { offset ->
+            currentWeekStart.plusDays(offset)
         }
     }
 
-    val today = LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE")) // День недели на русском
+    val today = LocalDate.now()
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("📝 Еженедельник") }) }
+        topBar = {
+            TopAppBar(title = { Text("📝 Еженедельник") })
+        }
     ) { paddingValues ->
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-            items(weekDaysWithDates) { (dayName, date) ->
+        Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
 
-                val isToday = dayName == today
-                val notes = groupedNotes[dayName] ?: emptyList()
+            // UI ДЛЯ НАВИГАЦИИ ПО НЕДЕЛЯМ
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { currentWeekStart = currentWeekStart.minusWeeks(1) }) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Предыдущая неделя")
+                }
 
-                // Получаем первую заметку для анонса
-                val noteSnippet = notes.firstOrNull()?.content ?: "Нет запланированных дел."
+                Text(
+                    text = weekRange,
+                    style = MaterialTheme.typography.titleLarge
+                )
 
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .clickable { onDayClick(dayName) },
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isToday) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
-                    )
-                ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                IconButton(onClick = { currentWeekStart = currentWeekStart.plusWeeks(1) }) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Следующая неделя")
+                }
+            }
+            HorizontalDivider()
+
+            // Список дней
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                items(weekDaysWithDates) { date ->
+
+                    val dateStringISO = date.format(DATE_FORMAT_ISO)
+                    val dayName = date.format(DateTimeFormatter.ofPattern("EEEE", LOCALE_RU))
+
+                    val isToday = date.isEqual(today)
+                    val notes = groupedNotes[dateStringISO] ?: emptyList()
+
+                    // Используем startTime != null для фильтрации Дел
+                    val noteSnippet = notes.sortedWith(
+                        compareBy<Note> { it.isDone }
+                            .thenBy { it.startTime }
+                    ).filter { !it.isDone }.firstOrNull()?.content
+                        ?: notes.firstOrNull()?.content
+                        ?: "Нет запланированных дел."
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .clickable { onDayClick(dateStringISO) },
+                        colors = CardDefaults.cardColors(
+                            containerColor = when {
+                                isToday -> MaterialTheme.colorScheme.primaryContainer
+                                else -> MaterialTheme.colorScheme.surfaceVariant
+                            }
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = dayName,
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = date.format(DATE_FORMAT_DISPLAY),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = dayName,
-                                style = MaterialTheme.typography.headlineSmall,
-                                color = if (isToday) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            // ⭐️ Отображение даты
-                            Text(
-                                text = date.format(DateTimeFormatter.ofPattern("dd.MM")),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                text = noteSnippet,
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 1,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                             )
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        // ⭐️ Отображение анонса заметки
-                        Text(
-                            text = noteSnippet,
-                            style = MaterialTheme.typography.bodyMedium,
-                            maxLines = 1,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
                     }
                 }
             }
@@ -176,7 +243,11 @@ fun DayListScreen(
     }
 }
 
-// ⭐️ ЭКРАН 2: ДЕТАЛИ ДНЯ (ОБНОВЛЕН ДЛЯ РЕАЛЬНОГО ОТОБРАЖЕНИЯ ЗАМЕТОК)
+// ******************************************************
+// ЭКРАН 2: ДЕТАЛИ ДНЯ
+// ******************************************************
+
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DayDetailScreen(
@@ -184,24 +255,41 @@ fun DayDetailScreen(
     noteViewModel: NoteViewModel,
     onBack: () -> Unit
 ) {
-    // ⭐️ Используем сгруппированные заметки
     val allNotes by noteViewModel.notesGroupedByDay.collectAsState()
 
-    // Фильтруем заметки для текущего дня
     val dayNotes = allNotes[selectedDay] ?: emptyList()
 
     var showDialog by remember { mutableStateOf(false) }
     var noteToEdit: Note? by remember { mutableStateOf(null) }
+    // ⭐️ НОВОЕ СОСТОЯНИЕ: Тип создаваемого элемента
+    var pendingNoteType: NoteType? by remember { mutableStateOf(null) }
+
+    fun openCreationDialog(type: NoteType?) {
+        noteToEdit = null // Для создания
+        pendingNoteType = type
+        showDialog = true
+    }
 
     fun openEditDialog(note: Note?) {
-        noteToEdit = note
+        noteToEdit = note // Для редактирования
+        // При редактировании тип не важен, т.к. время уже задано/отсутствует
+        pendingNoteType = null
         showDialog = true
+    }
+
+    val displayDate = try {
+        val date = LocalDate.parse(selectedDay, DATE_FORMAT_ISO)
+        val dayName = date.format(DateTimeFormatter.ofPattern("EEEE", LOCALE_RU))
+        val dateDisplay = date.format(DATE_FORMAT_DISPLAY)
+        "$dayName, $dateDisplay"
+    } catch (e: Exception) {
+        selectedDay
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(selectedDay) },
+                title = { Text(displayDate) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
@@ -209,30 +297,36 @@ fun DayDetailScreen(
                 }
             )
         },
+        // ⭐️ НОВЫЙ FAB КОМПОНЕНТ
         floatingActionButton = {
-            FloatingActionButton(onClick = { openEditDialog(null) }) {
-                Icon(Icons.Filled.Add, contentDescription = "Добавить заметку")
-            }
+            FabContainer(
+                onAddTask = { openCreationDialog(NoteType.TASK) },
+                onAddNote = { openCreationDialog(NoteType.NOTE) }
+            )
         }
     ) { padding ->
         NoteList(
             modifier = Modifier.padding(padding),
-            notes = dayNotes, // ⭐️ Передаем только заметки для этого дня
+            notes = dayNotes,
             onDeleteNote = { note -> noteViewModel.deleteNote(note) },
             onEditNote = { note -> openEditDialog(note) },
-            // ⭐️ Добавлено переключение статуса isDone
             onToggleDone = { note -> noteViewModel.toggleDoneStatus(note) }
         )
 
         if (showDialog) {
+            // ⭐️ ПЕРЕДАЕМ isTask В ДИАЛОГ
+            val isTask = noteToEdit?.startTime != null || pendingNoteType == NoteType.TASK
+
             AddNoteDialog(
                 noteToEdit = noteToEdit,
-                defaultDay = selectedDay, // ⭐️ Используем текущий день
-                onDismiss = { showDialog = false; noteToEdit = null },
-                onSaveNote = { id, day, content ->
-                    noteViewModel.saveNote(id, day, content)
+                isTask = isTask,
+                defaultDay = selectedDay,
+                onDismiss = { showDialog = false; noteToEdit = null; pendingNoteType = null },
+                onSaveNote = { id, day, content, startTime ->
+                    noteViewModel.saveNote(id, day, content, startTime)
                     showDialog = false
                     noteToEdit = null
+                    pendingNoteType = null
                 }
             )
         }
@@ -240,28 +334,213 @@ fun DayDetailScreen(
 }
 
 // ******************************************************
+// КОМПОНЕНТ FAB CONTAINER - ДВЕ КНОПКИ
+// ******************************************************
+
+@Composable
+fun FabContainer(
+    onAddTask: () -> Unit,
+    onAddNote: () -> Unit
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.padding(bottom = 16.dp, end = 16.dp)
+    ) {
+        // Кнопка для Добавления ЗАМЕТКИ (без времени)
+        ExtendedFloatingActionButton(
+            onClick = onAddNote,
+            icon = { Icon(Icons.Default.Menu, contentDescription = null) },
+            text = { Text("Заметка") },
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
+
+        // Кнопка для Добавления ДЕЛА (со временем)
+        ExtendedFloatingActionButton(
+            onClick = onAddTask,
+            icon = { Icon(Icons.Default.Schedule, contentDescription = null) },
+            text = { Text("Дело") },
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    }
+}
+
+
+// ******************************************************
+// AddNoteDialog - УСЛОВНОЕ ОТОБРАЖЕНИЕ ВРЕМЕНИ
+// ******************************************************
+
+@RequiresApi(Build.VERSION_CODES.O)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddNoteDialog(
+    noteToEdit: Note?,
+    isTask: Boolean, // ⭐️ НОВЫЙ ПАРАМЕТР: Является ли это Делом (со временем)
+    defaultDay: String,
+    onDismiss: () -> Unit,
+    onSaveNote: (id: Int, day: String, content: String, startTime: LocalTime?) -> Unit
+) {
+    val isEditing = noteToEdit != null
+    val selectedDay = defaultDay
+
+    val initialContent = noteToEdit?.content ?: ""
+    val noteId = noteToEdit?.id ?: 0
+
+    val initialTime = if (isTask || isEditing) noteToEdit?.startTime else null
+    var noteContent by remember { mutableStateOf(initialContent) }
+    var selectedTime by remember { mutableStateOf(initialTime) } // LocalTime?
+    // Автооткрытие только для новых Дел (isTask=true) и если время еще не установлено
+    var showTimePicker by remember { mutableStateOf(isTask && noteToEdit?.startTime == null) }
+
+    val dialogTitle = when {
+        isEditing -> "Редактировать ${if (isTask) "Дело" else "Заметку"}"
+        isTask -> "Добавить Дело (со временем)"
+        else -> "Добавить Заметку (без времени)"
+    }
+
+    val displayDate = try {
+        val date = LocalDate.parse(selectedDay, DATE_FORMAT_ISO)
+        val dayName = date.format(DateTimeFormatter.ofPattern("EEEE", LOCALE_RU))
+        val dateDisplay = date.format(DATE_FORMAT_DISPLAY)
+        "$dayName, $dateDisplay"
+    } catch (e: Exception) {
+        selectedDay
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(dialogTitle) },
+        text = {
+            Column {
+                Text(
+                    text = displayDate,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                // ⭐️ УСЛОВНЫЙ UI ДЛЯ ВЫБОРА ВРЕМЕНИ (ТОЛЬКО ДЛЯ ДЕЛ)
+                if (isTask) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Время дела:", modifier = Modifier.weight(1f))
+
+                        // Кнопка для открытия TimePicker
+                        TextButton(onClick = { showTimePicker = true }) {
+                            Text(selectedTime?.format(DateTimeFormatter.ofPattern("HH:mm")) ?: "Выбрать время")
+                        }
+
+                        // Кнопка для сброса времени (если оно было выбрано)
+                        if (selectedTime != null) {
+                            IconButton(onClick = { selectedTime = null }) {
+                                Icon(Icons.Filled.Delete, contentDescription = "Удалить время")
+                            }
+                        }
+                    }
+                }
+
+
+                OutlinedTextField(
+                    value = noteContent,
+                    onValueChange = { noteContent = it },
+                    label = { Text("Текст ${if (isTask) "дела" else "заметки"}") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (noteContent.isNotBlank()) {
+                        // Для Дела (Task) передаем selectedTime, для Заметки (Note) всегда null
+                        val finalTime = if (isTask) selectedTime else null
+                        onSaveNote(noteId, selectedDay, noteContent.trim(), finalTime)
+                    }
+                },
+                // ⭐️ ОБНОВЛЕННАЯ ЛОГИКА АКТИВНОСТИ:
+                // Кнопка активна, если:
+                // 1. Есть текст.
+                // 2. ИЛИ это не Дело (isTask=false)
+                // 3. ИЛИ это Дело (isTask=true), но время выбрано (selectedTime != null).
+                enabled = noteContent.isNotBlank() && (!isTask || selectedTime != null)
+            ) {
+                Text(if (isEditing) "Сохранить" else "Добавить")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Отмена")
+            }
+        }
+    )
+
+    // Time Picker Dialog
+    if (showTimePicker) {
+        val now = LocalTime.now()
+        // Используем текущее время, если оно не было выбрано ранее
+        val initialHour = selectedTime?.hour ?: now.hour
+        val initialMinute = selectedTime?.minute ?: now.minute
+
+        val timePickerState = rememberTimePickerState(
+            initialHour = initialHour,
+            initialMinute = initialMinute,
+            is24Hour = true
+        )
+
+        // Диалоговое окно для TimePicker
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    // Устанавливаем время и закрываем
+                    selectedTime = LocalTime.of(timePickerState.hour, timePickerState.minute)
+                    showTimePicker = false
+                }) {
+                    Text("ОК")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showTimePicker = false
+                }) {
+                    Text("Отмена")
+                }
+            },
+            text = {
+                TimePicker(state = timePickerState)
+            }
+        )
+    }
+}
+
+// ******************************************************
 // ОБНОВЛЕННЫЕ КОМПОНЕНТЫ
 // ******************************************************
 
-// NoteList: Добавлен onToggleDone
+// NoteList:
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun NoteList(
     modifier: Modifier = Modifier,
     notes: List<Note>,
     onDeleteNote: (Note) -> Unit,
     onEditNote: (Note) -> Unit,
-    onToggleDone: (Note) -> Unit // ⭐️ НОВАЯ ФУНКЦИЯ
+    onToggleDone: (Note) -> Unit
 ) {
     LazyColumn(modifier = modifier.fillMaxSize()) {
-        // Сортируем: сначала невыполненные, затем выполненные
-        items(notes.sortedBy { it.isDone }, key = { it.id }) { note ->
+        // Сортировка по isDone, затем по startTime
+        items(notes.sortedWith(
+            compareBy<Note> { it.isDone }
+                .thenBy { it.startTime == null } // Сначала Дела (со временем), затем Заметки (без времени)
+                .thenBy { it.startTime }
+        ), key = { it.id }) { note ->
             NoteItem(
                 note = note,
                 onEdit = { onEditNote(note) },
                 onDelete = { onDeleteNote(note) },
-                onToggleDone = { onToggleDone(note) } // ⭐️ Передаем функцию
+                onToggleDone = { onToggleDone(note) }
             )
-            Divider()
+            HorizontalDivider()
         }
     }
     if (notes.isEmpty()) {
@@ -274,19 +553,25 @@ fun NoteList(
     }
 }
 
-// NoteItem: Добавлен Checkbox и логика зачеркивания
+// NoteItem: УЛУЧШЕННОЕ ОТОБРАЖЕНИЕ
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun NoteItem(note: Note, onEdit: () -> Unit, onDelete: () -> Unit, onToggleDone: () -> Unit) {
     val cardAlpha = if (note.isDone) 0.6f else 1.0f
     val textDecoration = if (note.isDone) TextDecoration.LineThrough else null
 
+    val timeDisplay = note.startTime?.format(DateTimeFormatter.ofPattern("HH:mm"))
+    val isTask = timeDisplay != null
+    val containerColor = if (isTask) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp)
-            .alpha(cardAlpha) // Уменьшаем прозрачность для выполненных
-            .combinedClickable(onClick = onEdit)
+            .alpha(cardAlpha)
+            .combinedClickable(onClick = onEdit),
+        colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Row(
             modifier = Modifier
@@ -295,89 +580,40 @@ fun NoteItem(note: Note, onEdit: () -> Unit, onDelete: () -> Unit, onToggleDone:
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // ⭐️ Checkbox
-            Checkbox(
-                checked = note.isDone,
-                onCheckedChange = { onToggleDone() },
-                modifier = Modifier.padding(end = 8.dp)
-            )
+            // ⭐️ УСЛОВНОЕ ОТОБРАЖЕНИЕ: Чекбокс только для Дел
+            if (isTask) {
+                Checkbox(
+                    checked = note.isDone,
+                    onCheckedChange = { onToggleDone() },
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+            } else {
+                Spacer(modifier = Modifier.width(32.dp)) // Визуальный отступ для выравнивания
+            }
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = note.day,
-                    style = MaterialTheme.typography.titleMedium,
-                    textDecoration = textDecoration // ⭐️ Зачеркивание
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = note.content,
-                    style = MaterialTheme.typography.bodyMedium,
-                    textDecoration = textDecoration // ⭐️ Зачеркивание
-                )
+                if (isTask) {
+                    // ⭐️ НОВЫЙ ФОРМАТ: "ВРЕМЯ - ДЕЛО"
+                    Text(
+                        text = "$timeDisplay - ${note.content}",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        textDecoration = textDecoration,
+                        maxLines = 2 // Ограничиваем, чтобы избежать слишком большого текста
+                    )
+                } else {
+                    // Основное содержимое для Заметки
+                    Text(
+                        text = note.content,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 3
+                    )
+                }
             }
-            // Кнопка удаления
             IconButton(onClick = onDelete) {
                 Icon(Icons.Filled.Delete, contentDescription = "Удалить заметку")
             }
         }
     }
 }
-
-// AddNoteDialog: Обновлен, чтобы принимать defaultDay и отключать DaySelector
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AddNoteDialog(
-    noteToEdit: Note?,
-    defaultDay: String, // ⭐️ Принимаем день по умолчанию
-    onDismiss: () -> Unit,
-    onSaveNote: (id: Int, day: String, content: String) -> Unit
-) {
-    val isEditing = noteToEdit != null
-    // День всегда берется из defaultDay, независимо от того, редактируем мы или создаем
-    val selectedDay = defaultDay
-
-    val initialContent = noteToEdit?.content ?: ""
-    val noteId = noteToEdit?.id ?: 0
-
-    var noteContent by remember { mutableStateOf(initialContent) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (isEditing) "Редактировать Заметку" else "Добавить Заметку") },
-        text = {
-            Column {
-                // ⭐️ ОТОБРАЖАЕМ ЗАФИКСИРОВАННЫЙ ДЕНЬ (опционально, для ясности)
-                Text(
-                    text = "День: $selectedDay",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-
-                OutlinedTextField(
-                    value = noteContent,
-                    onValueChange = { noteContent = it },
-                    label = { Text("Текст заметки") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    if (noteContent.isNotBlank()) {
-                        onSaveNote(noteId, selectedDay, noteContent.trim())
-                    }
-                },
-                enabled = noteContent.isNotBlank()
-            ) {
-                Text(if (isEditing) "Сохранить" else "Добавить")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Отмена")
-            }
-        }
-    )
-}
-

@@ -74,4 +74,9 @@ dependencies {
 
     // build.gradle.kts (Module: app) - в блоке dependencies { ... }
     implementation("androidx.navigation:navigation-compose:2.7.7") // Убедитесь, что версия актуальна
+
+    // ⭐️ ДОБАВЬТЕ ЭТУ ЗАВИСИМОСТЬ
+    implementation("javax.inject:javax.inject:1")
+
+    implementation("androidx.compose.material:material-icons-extended")
 }

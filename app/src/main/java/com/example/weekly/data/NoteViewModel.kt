@@ -8,14 +8,23 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalTime
 
 class NoteViewModel(private val repository: NoteRepository) : ViewModel() {
 
-    // ⭐️ ЗАМЕНА СТАРОГО UI State
-    val notesGroupedByDay: StateFlow<Map<String, List<Note>>> = repository.allNotes
-        .map { notes ->
-            // Группируем заметки по полю 'day'
-            notes.groupBy { it.day }
+    // ⭐️ ИСПРАВЛЕНА ЛОГИКА ГРУППИРОВКИ И СОРТИРОВКИ
+    val notesGroupedByDay: StateFlow<Map<String, List<Note>>> = repository.getAllNotes()
+        .map { notes: List<Note> -> // Явно указываем тип List<Note>
+            notes
+                .groupBy { it.day } // Группировка по полю 'day'
+                .mapValues { (_, dayNotes: List<Note>) -> // Явно указываем тип List<Note>
+                    // Сортировка:
+                    dayNotes.sortedWith(
+                        compareBy<Note> { it.isDone } // 1. Сначала невыполненные, затем выполненные
+                            .thenBy { it.startTime == null } // 2. Сначала Дела (со временем), затем Заметки (без времени)
+                            .thenBy { it.startTime } // 3. Дела сортируем по времени начала
+                    )
+                }
         }
         .stateIn(
             scope = viewModelScope,
@@ -23,34 +32,40 @@ class NoteViewModel(private val repository: NoteRepository) : ViewModel() {
             initialValue = emptyMap()
         )
 
-    fun saveNote(id: Int, day: String, content: String) {
-        viewModelScope.launch {
-            // Примечание: При обновлении существующей заметки (id > 0) этот подход сбрасывает статус isDone на false,
-            // так как в этом методе мы не знаем предыдущего статуса.
-            // Для полного исправления вам потребуется получать заметку из БД перед обновлением.
-            val noteToSave = Note(id = id, day = day, content = content)
-            repository.upsert(noteToSave)
-        }
+    fun deleteNote(note: Note) = viewModelScope.launch {
+        repository.deleteNote(note)
     }
 
-    // ⭐️ НОВАЯ ФУНКЦИЯ: Переключение статуса isDone
-    fun toggleDoneStatus(note: Note) {
-        viewModelScope.launch {
-            // Создаем копию заметки, инвертируя isDone
-            val updatedNote = note.copy(isDone = !note.isDone)
-            // Используем upsert/update для сохранения изменения в БД
-            repository.upsert(updatedNote)
-        }
+    fun toggleDoneStatus(note: Note) = viewModelScope.launch {
+        repository.toggleDoneStatus(note)
     }
 
-    fun deleteNote(note: Note) {
-        viewModelScope.launch {
-            repository.delete(note)
-        }
+    // ⭐️ ОБНОВЛЕН: Принимает LocalTime?
+    fun saveNote(id: Int, day: String, content: String, startTime: LocalTime?) = viewModelScope.launch {
+        // Блокируем, чтобы получить isDone, прежде чем обновить заметку.
+        // Поскольку getNoteById может быть suspend, лучше использовать с withContext(Dispatchers.IO)
+        // или использовать обертку, как сделано здесь (если ваш DAO не suspend).
+
+        // ВАЖНО: getNoteById должен быть выполнен в потоке, отличном от Main
+        val existingNote = if (id != 0) repository.getNoteById(id) else null
+
+        val note = Note(
+            id = if (id == 0) 0 else id,
+            day = day,
+            content = content,
+            // Сохраняем isDone для существующей заметки, если она была
+            isDone = existingNote?.isDone ?: false,
+            startTime = startTime
+        )
+        // ⭐️ ИСПОЛЬЗУЕМ upsertNote
+        repository.upsertNote(note)
     }
 }
 
-// Фабрика для ViewModel
+// ******************************************************
+// FACTORY
+// ******************************************************
+
 class NoteViewModelFactory(private val repository: NoteRepository) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(NoteViewModel::class.java)) {
