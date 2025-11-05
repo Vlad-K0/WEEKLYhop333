@@ -1,8 +1,6 @@
-package com.example.weekly
+package com.example.weekly.data
 
 import android.app.Application
-import com.example.weekly.data.NoteDatabase
-import com.example.weekly.data.NoteRepository
 
 class WeeklyApplication : Application() {
     val database by lazy { NoteDatabase.getDatabase(this) }
