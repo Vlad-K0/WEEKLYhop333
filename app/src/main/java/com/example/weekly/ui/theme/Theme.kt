@@ -12,93 +12,98 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-// ******************************************************
-// ⭐️ ПЕРСОНАЛИЗИРОВАННЫЕ ЦВЕТА ПОЛЬЗОВАТЕЛЯ (Розовый/Индиго)
-// ******************************************************
 
-// Основные акценты
-private val CustomPrimary = Color(0xFFD283A8) // ⭐️ Приглушенный Розовый (Дела)
-private val CustomSecondary = Color(0xFFA6688F) // ⭐️ Глубокий Лиловый (Заметки)
 
-// Цвета для Темной темы
-private val DarkBackground = Color(0xFF2B101D) // ⭐️ ИЗМЕНЕНО: Очень глубокий, нейтральный темно-бордовый (ФОН)
-private val DarkSurface = Color(0xFF4C1435)      // Темный Бордовый (Поверхность)
-private val DarkOnPrimary = Color.Black // Черный текст на светлом розовом
-private val DarkOnBackground = Color.White // Белый текст на темном фоне
-private val DarkOnSurface = Color.White // Белый текст на бордовой поверхности
+// 🎨 Основные фирменные цвета
+private val CustomPrimary = Color(0xFFD283A8)
+private val CustomSecondary = Color(0xFFA6688F)
 
-// Цвета для Светлой темы
-private val LightBackground = Color(0xFFFFFFFF)  // Чисто белый
-private val LightSurface = Color(0xFFF4CADB)      // Светлый Розовый (Поверхность)
+// 🌙 Цвета для ТЕМНОЙ темы
+private val DarkBackground = Color(0xFF2B101D)
+private val DarkSurface = Color(0xFF4C1435)
+private val DarkOnPrimary = Color.Black
+private val DarkOnBackground = Color.White
+private val DarkOnSurface = Color.White
+
+
+private val LightBackground = Color(0xFFFFFFFF)
+private val LightSurface = Color(0xFFF4CADB)
 private val LightOnPrimary = Color.Black
 private val LightOnBackground = Color.Black
 private val LightOnSurface = Color.Black
 
-// ******************************************************
-// ⭐️ ЦВЕТОВЫЕ СХЕМЫ MATERIAL 3
-// ******************************************************
-
 private val DarkColorScheme = darkColorScheme(
-    primary = CustomPrimary, // Приглушенный Розовый
+    primary = CustomPrimary,
     onPrimary = DarkOnPrimary,
-    primaryContainer = CustomPrimary, // Контейнер Дел (Приглушенный Розовый)
+    primaryContainer = CustomPrimary,
     onPrimaryContainer = DarkOnBackground,
-    secondary = CustomSecondary, // Глубокий Лиловый
+
+    secondary = CustomSecondary,
     onSecondary = DarkOnBackground,
-    secondaryContainer = CustomSecondary, // Контейнер Заметок (Глубокий Лиловый)
+    secondaryContainer = CustomSecondary,
     onSecondaryContainer = DarkOnBackground,
+
     tertiary = CustomSecondary,
-    background = DarkBackground, // ⭐️ Новый Темно-бордовый Фон
+    background = DarkBackground,
     onBackground = DarkOnBackground,
-    surface = DarkSurface, // Темный Бордовый (AppBar, Карточки дней)
+    surface = DarkSurface,
     onSurface = DarkOnSurface
 )
+
 
 private val LightColorScheme = lightColorScheme(
     primary = CustomPrimary,
     onPrimary = LightOnPrimary,
     primaryContainer = CustomPrimary,
     onPrimaryContainer = LightOnBackground,
+
     secondary = CustomSecondary,
     onSecondary = LightOnBackground,
     secondaryContainer = CustomSecondary,
     onSecondaryContainer = LightOnBackground,
+
     tertiary = CustomSecondary,
-    background = LightBackground, // ЧИСТЫЙ БЕЛЫЙ
+    background = LightBackground,
     onBackground = LightOnBackground,
-    surface = LightSurface, // Светлый Розовый (Поверхность)
+    surface = LightSurface,
     onSurface = LightOnSurface
 )
 
+
+
+
 @Composable
 fun WEEKLYTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false, // Отключаем Dynamic Color для принудительного использования кастомных цветов
+    darkTheme: Boolean = isSystemInDarkTheme(), // определяем системную тему
+    dynamicColor: Boolean = false, // отключаем Dynamic Color, чтобы использовать кастомную палитру
     content: @Composable () -> Unit
 ) {
+    // определяем, какую схему использовать (тёмную или светлую)
     val colorScheme = when {
-        // Логика Dynamic Color проигнорируется, так как dynamicColor = false
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        // Используем наши новые схемы
+
+        //кастомные темы
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
 
+    //настраиваем цвет статус-бара под тему
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.background.toArgb()
+            window.statusBarColor = colorScheme.background.toArgb() // цвет статус-бара = фону приложения
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
 
+    //применяем MaterialTheme ко всему UI
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
-        content = content
+        content = content          // 🌿 переданное содержимое экрана
     )
 }

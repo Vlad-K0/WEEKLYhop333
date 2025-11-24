@@ -1,11 +1,10 @@
 package com.example.weekly
-
+//закрытый класс (все возможные подклассы определены в одном файле)
 sealed class Screen(val route: String) {
-    // ⭐️ Этот объект обязательно должен присутствовать
     object DayList : Screen("day_list_screen")
 
-    // Этот объект также нужен для перехода на экран деталей
     object DayDetail : Screen("day_detail_screen/{day}") {
+        //функция для создания фактического URI маршрута, предотвращающая ошибки при ручном форматировании строки.
         fun createRoute(day: String) = "day_detail_screen/$day"
     }
 }

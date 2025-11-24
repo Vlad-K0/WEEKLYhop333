@@ -22,55 +22,60 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddNoteDialog(
-    noteToEdit: Note?,
-    isTask: Boolean,
-    defaultDay: String,
-    onDismiss: () -> Unit,
-    onSaveNote: (id: Int, day: String, content: String, startTime: LocalTime?) -> Unit
+    noteToEdit: Note?, //если не null — редактируем существующую заметку
+    isTask: Boolean, //тип создаваемого элемента (дело или обычная заметка)
+    defaultDay: String, //день, к которому будет добавлена заметка
+    onDismiss: () -> Unit, // акрытие диалога
+    onSaveNote: (id: Int, day: String, content: String, startTime: LocalTime?) -> Unit // callback при сохранении
 ) {
     val isEditing = noteToEdit != null
-    val noteId = noteToEdit?.id ?: 0
+    val noteId = noteToEdit?.id ?: 0 //если редактируем — сохраняем id
 
-    // ⭐️ Состояние для выбранной даты
-    var selectedDay by remember {
-        mutableStateOf(noteToEdit?.day ?: defaultDay)
-    }
+    //текущий выбранный день (по умолчанию — выбранный в календаре)
+    var selectedDay by remember { mutableStateOf(noteToEdit?.day ?: defaultDay) }
+
+    //начальный текст заметки
     val initialContent = noteToEdit?.content ?: ""
-
-    val initialTime = if (isTask || isEditing) noteToEdit?.startTime else null
     var noteContent by remember { mutableStateOf(initialContent) }
+
+    //время начала (если это "дело")
+    val initialTime = if (isTask || isEditing) noteToEdit?.startTime else null
     var selectedTime by remember { mutableStateOf(initialTime) }
+
+    //флаг для показа диалога выбора времени
     var showTimePicker by remember { mutableStateOf(isTask && noteToEdit?.startTime == null) }
 
-    // ⭐️ Состояние для отображения календаря
+    //флаг для показа календаря
     var showDatePicker by remember { mutableStateOf(false) }
 
+    //заголовок окна
     val dialogTitle = when {
         isEditing -> "Редактировать ${if (isTask) "Дело" else "Заметку"}"
         isTask -> "Добавить Дело (со временем)"
         else -> "Добавить Заметку (без времени)"
     }
 
-    // ⭐️ Динамическое форматирование даты
+    //форматированная дата для отображения в UI
     val displayDate: String = remember(selectedDay) {
         try {
             val date = LocalDate.parse(selectedDay, DATE_FORMAT_ISO)
             val dayName = date.format(DateTimeFormatter.ofPattern("EEEE", LOCALE_RU))
             val dateDisplay = date.format(DATE_FORMAT_DISPLAY)
-            // Капитализация первого символа дня недели
+            //с большой буквы день недели
             val capitalizedDayName = dayName.replaceFirstChar { if (it.isLowerCase()) it.titlecase(LOCALE_RU) else it.toString() }
             "$capitalizedDayName, $dateDisplay"
         } catch (e: Exception) {
-            selectedDay
+            selectedDay // если парсинг не удался
         }
     }
 
+    // основное диалоговое окно
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(dialogTitle, style = MaterialTheme.typography.titleMedium) },
         text = {
             Column {
-                // ⭐️ Выбор даты
+                // строка выбора даты
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -81,11 +86,13 @@ fun AddNoteDialog(
                         modifier = Modifier.weight(1f)
                     )
 
+                    //кнопка для открытия календаря
                     TextButton(onClick = { showDatePicker = true }) {
                         Text(displayDate, style = MaterialTheme.typography.labelLarge)
                     }
                 }
 
+                // если это "дело" (с временем)
                 if (isTask) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
@@ -93,10 +100,16 @@ fun AddNoteDialog(
                     ) {
                         Text("Время дела:", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
 
+                        //кнопка для выбора времени
                         TextButton(onClick = { showTimePicker = true }) {
-                            Text(selectedTime?.format(DateTimeFormatter.ofPattern("HH:mm")) ?: "Выбрать время", style = MaterialTheme.typography.labelLarge)
+                            Text(
+                                selectedTime?.format(DateTimeFormatter.ofPattern("HH:mm"))
+                                    ?: "Выбрать время",
+                                style = MaterialTheme.typography.labelLarge
+                            )
                         }
 
+                        //кнопка очистки времени (иконка мусорки)
                         if (selectedTime != null) {
                             IconButton(onClick = { selectedTime = null }) {
                                 Icon(Icons.Filled.Delete, contentDescription = "Удалить время")
@@ -105,15 +118,17 @@ fun AddNoteDialog(
                     }
                 }
 
-
+                // поле ввода текста заметки
                 OutlinedTextField(
                     value = noteContent,
                     onValueChange = { noteContent = it },
-                    label = { Text("Текст ${if (isTask) "дела" else "заметки"}", style = MaterialTheme.typography.bodyMedium) },
+                    label = { Text("Текст ${if (isTask) "дела" else "заметки"}") },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
         },
+
+        // кнопка "Сохранить" или "Добавить"
         confirmButton = {
             TextButton(
                 onClick = {
@@ -122,11 +137,14 @@ fun AddNoteDialog(
                         onSaveNote(noteId, selectedDay, noteContent.trim(), finalTime)
                     }
                 },
+                // Кнопка активна только если текст введён (и время выбрано, если это дело)
                 enabled = noteContent.isNotBlank() && (!isTask || selectedTime != null)
             ) {
                 Text(if (isEditing) "Сохранить" else "Добавить", style = MaterialTheme.typography.labelLarge)
             }
         },
+
+        // кнопка "Отмена"
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("Отмена", style = MaterialTheme.typography.labelLarge)
@@ -134,10 +152,13 @@ fun AddNoteDialog(
         }
     )
 
-    // ⭐️ ДИАЛОГ ВЫБОРА ДАТЫ
+    //диалог выбора даты
     if (showDatePicker) {
         val initialDate = LocalDate.parse(selectedDay, DATE_FORMAT_ISO)
-        val initialSelectedDateMillis = initialDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val initialSelectedDateMillis = initialDate
+            .atStartOfDay(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
 
         val dateState = rememberDatePickerState(
             initialSelectedDateMillis = initialSelectedDateMillis
@@ -149,17 +170,19 @@ fun AddNoteDialog(
                 TextButton(onClick = {
                     val newDateMillis = dateState.selectedDateMillis
                     if (newDateMillis != null) {
-                        val newLocalDate = Instant.ofEpochMilli(newDateMillis).atZone(ZoneId.systemDefault()).toLocalDate()
+                        val newLocalDate = Instant.ofEpochMilli(newDateMillis)
+                            .atZone(ZoneId.systemDefault())
+                            .toLocalDate()
                         selectedDay = newLocalDate.format(DATE_FORMAT_ISO)
                     }
                     showDatePicker = false
                 }) {
-                    Text("ОК", style = MaterialTheme.typography.labelLarge)
+                    Text("ОК")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("Отмена", style = MaterialTheme.typography.labelLarge)
+                    Text("Отмена")
                 }
             }
         ) {
@@ -167,6 +190,7 @@ fun AddNoteDialog(
         }
     }
 
+    //диалог выбора времени
     if (showTimePicker) {
         val now = LocalTime.now()
         val initialHour = selectedTime?.hour ?: now.hour
@@ -185,19 +209,15 @@ fun AddNoteDialog(
                     selectedTime = LocalTime.of(timePickerState.hour, timePickerState.minute)
                     showTimePicker = false
                 }) {
-                    Text("ОК", style = MaterialTheme.typography.labelLarge)
+                    Text("ОК")
                 }
             },
             dismissButton = {
-                TextButton(onClick = {
-                    showTimePicker = false
-                }) {
-                    Text("Отмена", style = MaterialTheme.typography.labelLarge)
+                TextButton(onClick = { showTimePicker = false }) {
+                    Text("Отмена")
                 }
             },
-            text = {
-                TimePicker(state = timePickerState)
-            }
+            text = { TimePicker(state = timePickerState) }
         )
     }
 }

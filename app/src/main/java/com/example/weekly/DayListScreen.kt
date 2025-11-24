@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.weekly.data.Note
+import com.example.weekly.data.NoteViewModel
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -24,33 +25,58 @@ import java.time.temporal.TemporalAdjusters
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DayListScreen(
-    onDayClick: (String) -> Unit,
-    groupedNotes: Map<String, List<Note>>
+    onDayClick: (String) -> Unit,                 // функция, вызываемая при клике на день
+    groupedNotes: Map<String, List<Note>>,       // заметки, сгруппированные по датам
+    noteViewModel: NoteViewModel                 // ViewModel для работы с данными и темой
 ) {
+    // определяем понедельник текущей недели (начало недели)
     var currentWeekStart by remember {
         mutableStateOf(LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)))
     }
 
+    // подписываемся на состояние темы из DataStore через Flow
+    val isDark by noteViewModel.isDarkTheme.collectAsState()
+
+    // вычисляем конец недели и создаём строку диапазона дат
     val weekEnd = currentWeekStart.plusDays(6)
     val weekRange = "${currentWeekStart.format(DATE_FORMAT_DISPLAY)} – ${weekEnd.format(DATE_FORMAT_DISPLAY)}"
 
+    // создаём список всех дней недели
     val weekDaysWithDates = remember(currentWeekStart) {
-        (0L..6L).map { offset ->
-            currentWeekStart.plusDays(offset)
-        }
+        (0L..6L).map { offset -> currentWeekStart.plusDays(offset) }
     }
 
+    //сегодняшняя дата (для подсветки)
     val today = LocalDate.now()
 
+    // основная структура экрана —
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
+            // 🔝 Верхняя панель приложения
             TopAppBar(
                 title = {
                     Text(
-                        text = "\uD83D\uDCDD weekly",
+                        text = "\uD83D\uDCDD weekly", // Заголовок приложения
                         style = MaterialTheme.typography.titleLarge
                     )
+                },
+                actions = {
+                    // переключатель темы (Светлая / Тёмная)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    ) {
+                        Text(
+                            text = if (isDark) "Тёмная" else "Светлая", // Надпись рядом со Switch
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Switch(
+                            checked = isDark,
+                            onCheckedChange = { noteViewModel.toggleTheme(it) } // Меняем тему через ViewModel
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
@@ -59,9 +85,14 @@ fun DayListScreen(
             )
         }
     ) { paddingValues ->
-        Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+        //основной контент экрана
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
 
-            // UI ДЛЯ НАВИГАЦИИ ПО НЕДЕЛЯМ
+            // панель для переключения недель (стрелки ← и →)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -69,69 +100,86 @@ fun DayListScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                //предыдущая неделя
                 IconButton(onClick = { currentWeekStart = currentWeekStart.minusWeeks(1) }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Предыдущая неделя")
                 }
 
+                //диапазон дат недели (например: 04.11 – 10.11)
                 Text(
                     text = weekRange,
                     style = MaterialTheme.typography.titleLarge
                 )
 
+                //следующая неделя
                 IconButton(onClick = { currentWeekStart = currentWeekStart.plusWeeks(1) }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Следующая неделя")
                 }
             }
+
+            //разделительная линия
             HorizontalDivider(color = MaterialTheme.colorScheme.outline)
 
-            // Список дней
+            // список всех дней текущей недели
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 items(weekDaysWithDates) { date ->
 
+                    // форматируем дату в ISO и получаем имя дня недели
                     val dateStringISO = date.format(DATE_FORMAT_ISO)
                     val dayName = date.format(DateTimeFormatter.ofPattern("EEEE", LOCALE_RU))
 
+                    //проверяем, совпадает ли с сегодняшним днём
                     val isToday = date.isEqual(today)
+
+                    //получаем заметки для текущего дня (если нет — пустой список)
                     val notes = groupedNotes[dateStringISO] ?: emptyList()
 
+                    // формируем короткий текст
                     val noteSnippet = notes.sortedWith(
                         compareBy<Note> { it.isDone }
                             .thenBy { it.startTime }
-                    ).filter { !it.isDone }.firstOrNull()?.content
+                    ).firstOrNull { !it.isDone }?.content
                         ?: notes.firstOrNull()?.content
-                        ?: "Нет запланированных дел."
+                        ?: "Нет запланированных дел." // если совсем пусто
 
+                    // карточка одного дня недели
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 8.dp)
-                            .clickable { onDayClick(dateStringISO) },
+                            .clickable { onDayClick(dateStringISO) }, // При клике — переход на экран дня
                         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = when {
+                                //если сегодня — подсвечиваем карточку
                                 isToday -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f)
                                 else -> MaterialTheme.colorScheme.surface
                             }
                         )
                     ) {
+                        // внутреннее содержимое карточки
                         Column(modifier = Modifier.padding(20.dp)) {
+                            //верхняя строка: название дня и дата
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = dayName,
+                                    text = dayName, //название дня
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = date.format(DATE_FORMAT_DISPLAY),
+                                    text = date.format(DATE_FORMAT_DISPLAY), // форматированная дата
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                                 )
                             }
+
                             Spacer(modifier = Modifier.height(8.dp))
+
+                            // короткое описание заметки
                             Text(
                                 text = noteSnippet,
                                 style = MaterialTheme.typography.bodyMedium,

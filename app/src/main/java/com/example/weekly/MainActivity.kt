@@ -11,6 +11,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -26,9 +27,6 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-// ******************************************************
-// КОНСТАНТЫ И ENUM (Оставлены здесь, так как они используются почти везде)
-// ******************************************************
 
 val LOCALE_RU = Locale.forLanguageTag("ru-RU")
 
@@ -37,36 +35,43 @@ val DATE_FORMAT_DISPLAY = DateTimeFormatter.ofPattern("dd.MM")
 @RequiresApi(Build.VERSION_CODES.O)
 val DATE_FORMAT_ISO = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
-// Тип элемента, который мы добавляем
+// тип элемента, который мы добавляем
 enum class NoteType {
-    TASK, // Дело (со временем)
-    NOTE // Заметка (без времени)
+    TASK, //со временем
+    NOTE //без времени
 }
 
-// ******************************************************
-// ГЛАВНАЯ ACTIVITY И NAV HOST
-// ******************************************************
+
 
 class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Получаем Application и Repository
         val application = application as WeeklyApplication
 
+        val noteViewModelFactory = NoteViewModelFactory(
+            repository = application.repository,
+            settingsManager = application.settingsManager
+        )
+
         setContent {
-            WEEKLYTheme {
+            val navController = rememberNavController()
+
+            //инициализируем ViewModel с обновленной Factory
+            val noteViewModel: NoteViewModel = viewModel(factory = noteViewModelFactory)
+
+            //собираем текущее состояние темы
+            val isDarkTheme by noteViewModel.isDarkTheme.collectAsState()
+
+            //передаем собранное состояние в тему
+            WEEKLYTheme(darkTheme = isDarkTheme) {
                 Surface(
-                    modifier = androidx.compose.ui.Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val navController = rememberNavController()
-
                     WeeklyNavHost(
-                        noteViewModel = viewModel(
-                            factory = NoteViewModelFactory(application.repository)
-                        ),
+                        noteViewModel = noteViewModel,
                         navController = navController
                     )
                 }
@@ -77,6 +82,7 @@ class MainActivity : ComponentActivity() {
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
+//навигация между экранами
 fun WeeklyNavHost(noteViewModel: NoteViewModel, navController: NavHostController) {
 
     val groupedNotes by noteViewModel.notesGroupedByDay.collectAsState()
@@ -90,7 +96,8 @@ fun WeeklyNavHost(noteViewModel: NoteViewModel, navController: NavHostController
                 groupedNotes = groupedNotes,
                 onDayClick = { dayISO ->
                     navController.navigate(Screen.DayDetail.createRoute(dayISO))
-                }
+                },
+                noteViewModel = noteViewModel
             )
         }
 

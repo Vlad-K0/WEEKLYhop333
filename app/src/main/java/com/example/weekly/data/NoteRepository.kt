@@ -4,27 +4,37 @@ import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Репозиторий для работы с заметками.
+ * Содержит методы для получения, вставки, обновления и удаления заметок.
+ */
+
+ // Repository != DAO это разные уровни абстракии DAO
+@Singleton
 class NoteRepository @Inject constructor(private val noteDao: NoteDao) {
 
-    // Возвращает Flow<List<Note>>
+    // ⭐️ Возвращает поток всех заметок из базы данных
+    // Можно подписываться в ViewModel через StateFlow/LiveData
     fun getAllNotes(): Flow<List<Note>> = noteDao.getAllNotes()
 
-    // ⭐️ Новый метод: Вставка или обновление
+    // ⭐️ Вставка новой заметки или обновление существующей
+    // Если заметка уже существует (по ID), обновляется
     suspend fun upsertNote(note: Note) {
         noteDao.upsert(note)
     }
 
+    // ⭐️ Удаление заметки
     suspend fun deleteNote(note: Note) {
         noteDao.delete(note)
     }
 
+    // ⭐️ Переключение статуса "выполнено/не выполнено"
     suspend fun toggleDoneStatus(note: Note) {
-        // Логика переключения статуса "выполнено"
         val updatedNote = note.copy(isDone = !note.isDone)
         noteDao.update(updatedNote)
     }
 
-    // ⭐️ Новый метод: Получение заметки по ID
+    // ⭐️ Получение заметки по ID (для редактирования)
     fun getNoteById(id: Int): Note? {
         return noteDao.getNoteById(id)
     }

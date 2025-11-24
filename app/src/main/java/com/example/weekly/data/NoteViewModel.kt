@@ -1,8 +1,8 @@
 package com.example.weekly.data
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.weekly.data.settings.SettingsManager
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -10,68 +10,71 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalTime
 
-class NoteViewModel(private val repository: NoteRepository) : ViewModel() {
+/**
+ * ViewModel для работы с заметками/делами и настройками темы.
+ *
+ * ⭐️ Добавлен SettingsManager для управления темой через DataStore
+ */
+class NoteViewModel(
+    private val repository: NoteRepository,         // Репозиторий для CRUD операций с заметками
+    private val settingsManager: SettingsManager    // Менеджер настроек для работы с темой
+) : ViewModel() {
 
-    // ⭐️ ИСПРАВЛЕНА ЛОГИКА ГРУППИРОВКИ И СОРТИРОВКИ
+    // ⭐️ StateFlow для наблюдения за темой (темная/светлая)
+    val isDarkTheme: StateFlow<Boolean> = settingsManager.isDarkTheme.stateIn(
+        scope = viewModelScope,                     // Используем viewModelScope для корректного lifecycle
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false                        // По умолчанию светлая тема
+    )
+
+    // ⭐️ Функция для переключения темы
+    fun toggleTheme(isDark: Boolean) {
+        viewModelScope.launch {
+            settingsManager.toggleTheme(isDark)
+        }
+    }
+
+    // ⭐️ StateFlow для заметок, сгруппированных по дню и отсортированных
     val notesGroupedByDay: StateFlow<Map<String, List<Note>>> = repository.getAllNotes()
-        .map { notes: List<Note> -> // Явно указываем тип List<Note>
+        .map { notes: List<Note> ->
             notes
-                .groupBy { it.day } // Группировка по полю 'day'
-                .mapValues { (_, dayNotes: List<Note>) -> // Явно указываем тип List<Note>
-                    // Сортировка:
+                .groupBy { it.day }  // Группируем по дню
+                .mapValues { (_, dayNotes: List<Note>) ->
+                    // Сортировка: сначала по статусу isDone, затем по наличию startTime, потом по времени
                     dayNotes.sortedWith(
-                        compareBy<Note> { it.isDone } // 1. Сначала невыполненные, затем выполненные
-                            .thenBy { it.startTime == null } // 2. Сначала Дела (со временем), затем Заметки (без времени)
-                            .thenBy { it.startTime } // 3. Дела сортируем по времени начала
+                        compareBy<Note> { it.isDone }
+                            .thenBy { it.startTime == null }
+                            .thenBy { it.startTime }
                     )
                 }
         }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyMap()
+            initialValue = emptyMap()  // Изначально пустой список
         )
 
+    // ⭐️ Удаление заметки
     fun deleteNote(note: Note) = viewModelScope.launch {
         repository.deleteNote(note)
     }
 
+    // ⭐️ Переключение статуса "выполнено/не выполнено"
     fun toggleDoneStatus(note: Note) = viewModelScope.launch {
         repository.toggleDoneStatus(note)
     }
 
-    // ⭐️ ОБНОВЛЕН: Принимает LocalTime?
+    // ⭐️ Сохранение новой или редактирование существующей заметки
     fun saveNote(id: Int, day: String, content: String, startTime: LocalTime?) = viewModelScope.launch {
-        // Блокируем, чтобы получить isDone, прежде чем обновить заметку.
-        // Поскольку getNoteById может быть suspend, лучше использовать с withContext(Dispatchers.IO)
-        // или использовать обертку, как сделано здесь (если ваш DAO не suspend).
-
-        // ВАЖНО: getNoteById должен быть выполнен в потоке, отличном от Main
         val existingNote = if (id != 0) repository.getNoteById(id) else null
 
         val note = Note(
             id = if (id == 0) 0 else id,
             day = day,
             content = content,
-            // Сохраняем isDone для существующей заметки, если она была
             isDone = existingNote?.isDone ?: false,
             startTime = startTime
         )
-        // ⭐️ ИСПОЛЬЗУЕМ upsertNote
-        repository.upsertNote(note)
-    }
-}
-
-// ******************************************************
-// FACTORY
-// ******************************************************
-
-class NoteViewModelFactory(private val repository: NoteRepository) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(NoteViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return NoteViewModel(repository) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
+        repository.upsertNote(note) // Добавляем или обновляем заметку
     }
 }

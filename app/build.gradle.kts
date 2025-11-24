@@ -79,4 +79,6 @@ dependencies {
     implementation("javax.inject:javax.inject:1")
 
     implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.datastore:datastore-preferences:1.0.0") // Или новее
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.0")
 }
