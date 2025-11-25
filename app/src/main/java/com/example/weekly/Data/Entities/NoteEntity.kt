@@ -2,6 +2,8 @@ package com.example.weekly.Data.Entities
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.time.LocalTime
 
@@ -9,7 +11,18 @@ import java.time.LocalTime
  * Сущность заметки для Room.
  * Каждая заметка представляет собой задачу на определённый день.
  */
-@Entity(tableName = "notes")
+@Entity(
+    tableName = "notes",
+    foreignKeys = [
+        ForeignKey(
+            entity = GroupEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["group_id"],
+            onDelete = ForeignKey.SET_NULL
+        )
+    ],
+    indices = [Index("group_id")]
+)
 data class NoteEntity(
     // Первичный ключ. autoGenerate = true автоматически присваивает уникальный ID.
     @PrimaryKey(autoGenerate = true)
@@ -27,7 +40,11 @@ data class NoteEntity(
     @ColumnInfo(name = "is_done")
     val isDone: Boolean = false,
 
-    // ⭐️ НОВОЕ ПОЛЕ: Время начала задачи (может быть null, если не указано)
+    // Время начала задачи (может быть null, если не указано)
     @ColumnInfo(name = "start_time")
-    val startTime: LocalTime? = null
+    val startTime: LocalTime? = null,
+
+    // ID группы (категории) задачи (может быть null для задач без группы)
+    @ColumnInfo(name = "group_id")
+    val groupId: Int? = null
 )

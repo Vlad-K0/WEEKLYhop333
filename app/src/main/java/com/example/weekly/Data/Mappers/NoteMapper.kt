@@ -9,7 +9,8 @@ fun NoteEntity.toDomain(): Note {
         content = this.content,
         date = this.date,
         isDone = this.isDone,
-        startTime = this.startTime
+        startTime = this.startTime,
+        groupId = this.groupId
     )
 }
 
@@ -19,6 +20,7 @@ fun Note.toEntity(): NoteEntity {
         content = this.content,
         date = this.date,
         isDone = this.isDone,
-        startTime = this.startTime
+        startTime = this.startTime,
+        groupId = this.groupId
     )
 }

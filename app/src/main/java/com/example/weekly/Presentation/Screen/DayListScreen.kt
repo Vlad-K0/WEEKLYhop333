@@ -2,19 +2,24 @@ package com.example.weekly.Presentation.Screen
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.weekly.Domain.Model.Note
+import com.example.weekly.Presentation.Components.GroupManagementDialog
 import com.example.weekly.Presentation.ViewModel.NoteViewModel
 import com.example.weekly.Presentation.DATE_FORMAT_DISPLAY
 import com.example.weekly.Presentation.DATE_FORMAT_ISO
@@ -31,6 +36,9 @@ fun DayListScreen(
 ) {
     // 1. Подписываемся на ЕДИНЫЙ стейт
     val state by noteViewModel.uiState.collectAsState()
+    
+    // Состояние для диалога управления группами
+    var showGroupManagement by remember { mutableStateOf(false) }
 
     // вычисляем конец недели и создаём строку диапазона дат
     val weekEnd = state.currentWeekStart.plusDays(6)
@@ -54,6 +62,14 @@ fun DayListScreen(
                     )
                 },
                 actions = {
+                    // Кнопка управления группами
+                    IconButton(onClick = { showGroupManagement = true }) {
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = "Управление группами"
+                        )
+                    }
+                    
                     // переключатель темы (Светлая / Тёмная)
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -106,6 +122,44 @@ fun DayListScreen(
                 //следующая неделя
                 IconButton(onClick = { noteViewModel.onNextWeekClick() }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Следующая неделя")
+                }
+            }
+
+            // Группы для фильтрации (горизонтальная прокрутка)
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Чип "Все"
+                item {
+                    FilterChip(
+                        selected = state.selectedGroupId == null,
+                        onClick = { noteViewModel.onGroupSelected(null) },
+                        label = { Text("Все") }
+                    )
+                }
+                
+                // Чипы для каждой группы
+                items(state.groups) { group ->
+                    FilterChip(
+                        selected = state.selectedGroupId == group.id,
+                        onClick = { noteViewModel.onGroupSelected(group.id) },
+                        label = { Text(group.name) },
+                        leadingIcon = {
+                            Box(
+                                modifier = Modifier
+                                    .size(12.dp)
+                                    .background(
+                                        androidx.compose.ui.graphics.Color(
+                                            android.graphics.Color.parseColor(group.color)
+                                        ),
+                                        CircleShape
+                                    )
+                            )
+                        }
+                    )
                 }
             }
 
@@ -183,6 +237,20 @@ fun DayListScreen(
                 }
             }
         }
+    }
+    
+    // Диалог управления группами
+    if (showGroupManagement) {
+        GroupManagementDialog(
+            groups = state.groups,
+            onDismiss = { showGroupManagement = false },
+            onAddGroup = { name, color ->
+                noteViewModel.saveGroup(name = name, color = color)
+            },
+            onDeleteGroup = { groupId ->
+                noteViewModel.deleteGroup(groupId)
+            }
+        )
     }
 }
 

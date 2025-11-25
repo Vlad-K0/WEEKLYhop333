@@ -117,6 +117,7 @@ fun DayDetailScreen(
                 noteToEdit = noteToEdit,           // если редактируем — передаём заметку
                 isTask = isTask,                   // флаг: заметка с временем или без
                 defaultDay = selectedDay,          // день, к которому относится заметка
+                groups = state.groups,             // список доступных групп
                 onDismiss = {
                     //закрытие диалога
                     showDialog = false
@@ -124,8 +125,8 @@ fun DayDetailScreen(
                     pendingNoteType = null
                 },
                 // сохранение заметки
-                onSaveNote = { id: Int, day: String, content: String, startTime: LocalTime? ->
-                    noteViewModel.saveNote(id, day, content, startTime) // вызываем метод ViewModel
+                onSaveNote = { id: Int, day: String, content: String, startTime: LocalTime?, groupId: Int? ->
+                    noteViewModel.saveNote(id, day, content, startTime, groupId) // вызываем метод ViewModel с groupId
                     showDialog = false
                     noteToEdit = null
                     pendingNoteType = null

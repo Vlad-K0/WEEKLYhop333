@@ -2,7 +2,9 @@ package com.example.weekly.Presentation.Components
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
@@ -10,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.weekly.Domain.Model.Group
 import com.example.weekly.Domain.Model.Note
 import com.example.weekly.Presentation.DATE_FORMAT_DISPLAY
 import com.example.weekly.Presentation.DATE_FORMAT_ISO
@@ -27,8 +30,9 @@ fun AddNoteDialog(
     noteToEdit: Note?, //если не null — редактируем существующую заметку
     isTask: Boolean, //тип создаваемого элемента (дело или обычная заметка)
     defaultDay: String, //день, к которому будет добавлена заметка
-    onDismiss: () -> Unit, // акрытие диалога
-    onSaveNote: (id: Int, day: String, content: String, startTime: LocalTime?) -> Unit // callback при сохранении
+    groups: List<Group> = emptyList(), // список доступных групп
+    onDismiss: () -> Unit, // закрытие диалога
+    onSaveNote: (id: Int, day: String, content: String, startTime: LocalTime?, groupId: Int?) -> Unit // callback при сохранении
 ) {
     val isEditing = noteToEdit != null
     val noteId = noteToEdit?.id ?: 0 //если редактируем — сохраняем id
@@ -43,6 +47,10 @@ fun AddNoteDialog(
     //время начала (если это "дело")
     val initialTime = if (isTask || isEditing) noteToEdit?.startTime else null
     var selectedTime by remember { mutableStateOf(initialTime) }
+    
+    // Выбранная группа
+    var selectedGroupId by remember { mutableStateOf(noteToEdit?.groupId) }
+    var groupDropdownExpanded by remember { mutableStateOf(false) }
 
     //флаг для показа диалога выбора времени
     var showTimePicker by remember { mutableStateOf(isTask && noteToEdit?.startTime == null) }
@@ -121,6 +129,61 @@ fun AddNoteDialog(
                         }
                     }
                 }
+                
+                // Выбор группы
+                if (groups.isNotEmpty()) {
+                    ExposedDropdownMenuBox(
+                        expanded = groupDropdownExpanded,
+                        onExpandedChange = { groupDropdownExpanded = !groupDropdownExpanded },
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = groups.find { it.id == selectedGroupId }?.name ?: "Без группы",
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Группа") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = groupDropdownExpanded) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth()
+                        )
+                        
+                        ExposedDropdownMenu(
+                            expanded = groupDropdownExpanded,
+                            onDismissRequest = { groupDropdownExpanded = false }
+                        ) {
+                            // Опция "Без группы"
+                            DropdownMenuItem(
+                                text = { Text("Без группы") },
+                                onClick = {
+                                    selectedGroupId = null
+                                    groupDropdownExpanded = false
+                                }
+                            )
+                            
+                            // Группы
+                            groups.forEach { group ->
+                                DropdownMenuItem(
+                                    text = { Text(group.name) },
+                                    onClick = {
+                                        selectedGroupId = group.id
+                                        groupDropdownExpanded = false
+                                    },
+                                    leadingIcon = {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(16.dp)
+                                                .background(
+                                                    androidx.compose.ui.graphics.Color(
+                                                        android.graphics.Color.parseColor(group.color)
+                                                    ),
+                                                    CircleShape
+                                                )
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
 
                 // поле ввода текста заметки
                 OutlinedTextField(
@@ -138,7 +201,7 @@ fun AddNoteDialog(
                 onClick = {
                     if (noteContent.isNotBlank()) {
                         val finalTime = if (isTask) selectedTime else null
-                        onSaveNote(noteId, selectedDay, noteContent.trim(), finalTime)
+                        onSaveNote(noteId, selectedDay, noteContent.trim(), finalTime, selectedGroupId)
                     }
                 },
                 // Кнопка активна только если текст введён (и время выбрано, если это дело)

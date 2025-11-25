@@ -7,5 +7,6 @@ data class Note(
     val content: String,
     val date: String,
     val isDone: Boolean,
-    val startTime: LocalTime?
+    val startTime: LocalTime?,
+    val groupId: Int? = null // Nullable - tasks can be ungrouped
 )

@@ -5,8 +5,13 @@ import com.example.weekly.Domain.Repository.NoteRepository
 import java.time.LocalTime
 
 class SaveNoteUseCase(private val repository: NoteRepository) {
-    suspend operator fun invoke(id: Int, date: String, content: String, startTime: LocalTime?) {
-
+    suspend operator fun invoke(
+        id: Int, 
+        date: String, 
+        content: String, 
+        startTime: LocalTime?,
+        groupId: Int? = null
+    ) {
         val oldNote = if (id != 0) repository.getNoteById(id) else null
 
         val newNote = Note(
@@ -14,7 +19,8 @@ class SaveNoteUseCase(private val repository: NoteRepository) {
             date = date,
             content = content,
             isDone = oldNote?.isDone ?: false,
-            startTime = startTime
+            startTime = startTime,
+            groupId = groupId
         )
 
         repository.saveNote(newNote)

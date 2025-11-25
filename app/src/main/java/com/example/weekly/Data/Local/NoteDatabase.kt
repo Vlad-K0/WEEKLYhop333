@@ -6,23 +6,26 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.example.weekly.Data.Local.Converters
+import com.example.weekly.Data.Entities.GroupEntity
 import com.example.weekly.Data.Entities.NoteEntity
 
 /**
- * Основная база данных приложения для хранения заметок.
+ * Основная база данных приложения для хранения заметок и групп.
  * RoomDatabase автоматически создает DAO и управляет сущностями.
  */
 @Database(
-    entities = [NoteEntity::class], // Сущности базы данных
-    version = 3,              // Версия базы данных
+    entities = [NoteEntity::class, GroupEntity::class], // Сущности базы данных
+    version = 4,              // Версия базы данных (увеличена для добавления GroupEntity)
     exportSchema = false      // Не сохраняем схему в папку ресурсов
 )
-// ⭐️ TypeConverters нужны для сохранения нестандартных типов данных (например, LocalTime)
 @TypeConverters(Converters::class)
 abstract class NoteDatabase : RoomDatabase() {
 
     // DAO для работы с таблицей Note
     abstract fun noteDao(): NoteDao
+    
+    // DAO для работы с таблицей Group
+    abstract fun groupDao(): GroupDao
 
     companion object {
         @Volatile
@@ -38,8 +41,8 @@ abstract class NoteDatabase : RoomDatabase() {
                     NoteDatabase::class.java,
                     "weekly_database" // Имя файла базы данных
                 )
-                    // ⚠️ При изменении версии базы данных:
-                    // .fallbackToDestructiveMigration() может быть полезно на этапе разработки
+                    .fallbackToDestructiveMigration() // Удаляет и пересоздает БД при миграции (только для разработки!)
+                    .addCallback(defaultGroupsCallback) // Добавляем дефолтные группы
                     .build()
                     .also { INSTANCE = it }
             }

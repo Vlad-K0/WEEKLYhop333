@@ -2,10 +2,14 @@ package com.example.weekly.di
 
 import android.content.Context
 import com.example.weekly.Data.Local.NoteDatabase
+import com.example.weekly.Data.Repository.GroupRepositoryImpl
 import com.example.weekly.Data.Repository.NoteRepositoryImpl
 import com.example.weekly.Data.Repository.SettingsRepositoryImpl
 import com.example.weekly.Data.Settings.SettingsManager
 import com.example.weekly.Data.dataStore
+import com.example.weekly.Domain.Usecase.GroupUseCases.DeleteGroupUseCase
+import com.example.weekly.Domain.Usecase.GroupUseCases.GetAllGroupsUseCase
+import com.example.weekly.Domain.Usecase.GroupUseCases.SaveGroupUseCase
 import com.example.weekly.Domain.Usecase.NoteUseCases.DeleteUseCase
 import com.example.weekly.Domain.Usecase.NoteUseCases.GetOrderedNotesUseCase
 import com.example.weekly.Domain.Usecase.NoteUseCases.SaveNoteUseCase
@@ -27,6 +31,7 @@ class AppContainer(context: Context) {
 
     // 2. Repository (Data Layer)
     private val noteRepository = NoteRepositoryImpl(database.noteDao())
+    private val groupRepository = GroupRepositoryImpl(database.groupDao())
     private val settingsRepository = SettingsRepositoryImpl(settingsManager)
 
     // 3. UseCases (Domain Layer)
@@ -35,8 +40,11 @@ class AppContainer(context: Context) {
     val saveNoteUseCase = SaveNoteUseCase(noteRepository)
     val toggleDoneStatusUseCase = ToggleDoneStatusUseCase(noteRepository)
 
-    val getThemeUseCase = GetThemeUseCase(settingsRepository)
+    val getAllGroupsUseCase = GetAllGroupsUseCase(groupRepository)
+    val saveGroupUseCase = SaveGroupUseCase(groupRepository)
+    val deleteGroupUseCase = DeleteGroupUseCase(groupRepository)
 
+    val getThemeUseCase = GetThemeUseCase(settingsRepository)
     val toggleThemeUseCase = ToggleThemeUseCase(settingsRepository)
 
     // 4. ViewModel Factory (Presentation Layer)
@@ -46,6 +54,9 @@ class AppContainer(context: Context) {
         saveNoteUseCase = saveNoteUseCase,
         toggleDoneStatusUseCase = toggleDoneStatusUseCase,
         getThemeUseCase = getThemeUseCase,
-        toggleThemeUseCase = toggleThemeUseCase
+        toggleThemeUseCase = toggleThemeUseCase,
+        getAllGroupsUseCase = getAllGroupsUseCase,
+        saveGroupUseCase = saveGroupUseCase,
+        deleteGroupUseCase = deleteGroupUseCase
     )
 }

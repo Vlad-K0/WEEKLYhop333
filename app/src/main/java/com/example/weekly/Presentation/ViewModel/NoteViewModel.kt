@@ -2,6 +2,9 @@ package com.example.weekly.Presentation.ViewModel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.weekly.Domain.Usecase.GroupUseCases.DeleteGroupUseCase
+import com.example.weekly.Domain.Usecase.GroupUseCases.GetAllGroupsUseCase
+import com.example.weekly.Domain.Usecase.GroupUseCases.SaveGroupUseCase
 import com.example.weekly.Domain.Usecase.ThemeUseCase.GetThemeUseCase
 import com.example.weekly.Domain.Usecase.ThemeUseCase.ToggleThemeUseCase
 import com.example.weekly.Domain.Model.Note
@@ -21,43 +24,49 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.temporal.TemporalAdjusters
 
-/**
- * ViewModel для работы с заметками/делами и настройками темы.
- *
- * ⭐️ Добавлен SettingsManager для управления темой через DataStore
- */
 class NoteViewModel(
     private val getOrderedNotesUseCase: GetOrderedNotesUseCase,
     private val getThemeUseCase: GetThemeUseCase,
     private val deleteUseCase: DeleteUseCase,
     private val saveNoteUseCase: SaveNoteUseCase,
     private val toggleDoneStatusUseCase: ToggleDoneStatusUseCase,
-    private val toggleThemeUseCase: ToggleThemeUseCase
+    private val toggleThemeUseCase: ToggleThemeUseCase,
+    private val getAllGroupsUseCase: GetAllGroupsUseCase,
+    private val saveGroupUseCase: SaveGroupUseCase,
+    private val deleteGroupUseCase: DeleteGroupUseCase
 ) : ViewModel() {
 
-    // 1. Внутренний MutableStateFlow, который мы меняем
+    // Внутренний MutableStateFlow
     private val _uiState = MutableStateFlow(DayListUiState())
     
-    // 2. Публичный StateFlow, который слушает UI (только для чтения)
+    // Публичный StateFlow для UI
     val uiState: StateFlow<DayListUiState> = _uiState.asStateFlow()
 
     init {
-        // Инициализация: загружаем тему, заметки и вычисляем даты
         loadInitialData()
     }
 
     private fun loadInitialData() {
-        // Запускаем корутину для сбора данных
         viewModelScope.launch {
-            // Пример объединения потоков
+            // Объединяем три потока: заметки, тема, и группы
             combine(
                 getOrderedNotesUseCase(),
-                getThemeUseCase()
-            ) { notes, isDark ->
-                // Когда приходят новые заметки или меняется тема -> обновляем стейт
+                getThemeUseCase(),
+                getAllGroupsUseCase()
+            ) { allNotes, isDark, groups ->
+                // Фильтруем заметки по выбранной группе
+                val filteredNotes = if (_uiState.value.selectedGroupId == null) {
+                    allNotes // Показываем все
+                } else {
+                    allNotes.mapValues { (_, notes) ->
+                        notes.filter { it.groupId == _uiState.value.selectedGroupId }
+                    }.filterValues { it.isNotEmpty() }
+                }
+                
                 _uiState.value.copy(
-                    notes = notes,
+                    notes = filteredNotes,
                     isDarkTheme = isDark,
+                    groups = groups,
                     isLoading = false
                 )
             }.collect { newState ->
@@ -65,7 +74,6 @@ class NoteViewModel(
             }
         }
         
-        // Инициализируем даты недели
         updateWeekDates(LocalDate.now())
     }
 
@@ -81,7 +89,6 @@ class NoteViewModel(
     }
 
     private fun updateWeekDates(startDate: LocalDate) {
-        // Логика вычисления дней недели
         val startOfWeek = startDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         val days = (0L..6L).map { startOfWeek.plusDays(it) }
         
@@ -89,6 +96,13 @@ class NoteViewModel(
             currentWeekStart = startOfWeek,
             weekDates = days
         )}
+    }
+
+    // Выбор группы для фильтрации
+    fun onGroupSelected(groupId: Int?) {
+        _uiState.update { it.copy(selectedGroupId = groupId) }
+        // Перезагружаем данные с новым фильтром
+        loadInitialData()
     }
 
     // Функция для переключения темы
@@ -109,8 +123,23 @@ class NoteViewModel(
     }
 
     // Сохранение новой или редактирование существующей заметки
-    fun saveNote(id: Int, date: String, content: String, startTime: LocalTime?) =
-        viewModelScope.launch {
-            saveNoteUseCase(id, date, content, startTime)
-        }
+    fun saveNote(
+        id: Int, 
+        date: String, 
+        content: String, 
+        startTime: LocalTime?,
+        groupId: Int? = null
+    ) = viewModelScope.launch {
+        saveNoteUseCase(id, date, content, startTime, groupId)
+    }
+    
+    // Сохранение группы
+    fun saveGroup(id: Int = 0, name: String, color: String) = viewModelScope.launch {
+        saveGroupUseCase(id, name, color)
+    }
+    
+    // Удаление группы
+    fun deleteGroup(groupId: Int) = viewModelScope.launch {
+        deleteGroupUseCase(groupId)
+    }
 }
