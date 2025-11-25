@@ -1,4 +1,4 @@
-package com.example.weekly.data
+package com.example.weekly.Data.Local
 
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -6,7 +6,6 @@ import androidx.room.TypeConverter
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
-
 
 class Converters {
 

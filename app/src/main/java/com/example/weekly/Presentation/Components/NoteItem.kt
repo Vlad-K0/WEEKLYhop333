@@ -1,4 +1,4 @@
-package com.example.weekly
+package com.example.weekly.Presentation.Components
 
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -17,7 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import com.example.weekly.data.Note
+import com.example.weekly.Data.Entities.NoteEntity
 import java.time.format.DateTimeFormatter
 
 // NoteList:
@@ -27,10 +27,10 @@ import java.time.format.DateTimeFormatter
 //отображение списка заметок
 fun NoteList(
     modifier: Modifier = Modifier,
-    notes: List<Note>,
-    onDeleteNote: (Note) -> Unit,
-    onEditNote: (Note) -> Unit,
-    onToggleDone: (Note) -> Unit
+    notes: List<NoteEntity>,
+    onDeleteNote: (NoteEntity) -> Unit,
+    onEditNote: (NoteEntity) -> Unit,
+    onToggleDone: (NoteEntity) -> Unit
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -38,7 +38,7 @@ fun NoteList(
     ) {
         items(notes.sortedWith(
             //сортировка заметок перед отображением
-            compareBy<Note> { it.isDone }
+            compareBy<NoteEntity> { it.isDone }
                 .thenBy { it.startTime == null }
                 .thenBy { it.startTime }
         ), key = { it.id }) { note ->
@@ -66,7 +66,7 @@ fun NoteList(
 @Composable
 
 //отображение отдельной заметки
-fun NoteItem(note: Note, onEdit: () -> Unit, onDelete: () -> Unit, onToggleDone: () -> Unit) {
+fun NoteItem(note: NoteEntity, onEdit: () -> Unit, onDelete: () -> Unit, onToggleDone: () -> Unit) {
     //если выполнена, то зачеркиваем
     val cardAlpha = if (note.isDone) 0.6f else 1.0f
     val textDecoration = if (note.isDone) TextDecoration.LineThrough else null

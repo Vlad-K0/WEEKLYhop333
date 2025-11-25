@@ -1,4 +1,5 @@
-package com.example.weekly
+package com.example.weekly.Presentation.Screen
+
 //закрытый класс (все возможные подклассы определены в одном файле)
 sealed class Screen(val route: String) {
     object DayList : Screen("day_list_screen")

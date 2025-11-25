@@ -1,4 +1,4 @@
-package com.example.weekly.data.settings
+package com.example.weekly.Data.Settings
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences

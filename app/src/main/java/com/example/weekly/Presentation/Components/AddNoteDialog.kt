@@ -1,4 +1,4 @@
-package com.example.weekly
+package com.example.weekly.Presentation.Components
 
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -10,19 +10,21 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.weekly.data.Note
+import com.example.weekly.Data.Entities.NoteEntity
+import com.example.weekly.Presentation.DATE_FORMAT_DISPLAY
+import com.example.weekly.Presentation.DATE_FORMAT_ISO
+import com.example.weekly.Presentation.LOCALE_RU
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddNoteDialog(
-    noteToEdit: Note?, //если не null — редактируем существующую заметку
+    noteToEdit: NoteEntity?, //если не null — редактируем существующую заметку
     isTask: Boolean, //тип создаваемого элемента (дело или обычная заметка)
     defaultDay: String, //день, к которому будет добавлена заметка
     onDismiss: () -> Unit, // акрытие диалога
@@ -32,7 +34,7 @@ fun AddNoteDialog(
     val noteId = noteToEdit?.id ?: 0 //если редактируем — сохраняем id
 
     //текущий выбранный день (по умолчанию — выбранный в календаре)
-    var selectedDay by remember { mutableStateOf(noteToEdit?.day ?: defaultDay) }
+    var selectedDay by remember { mutableStateOf(noteToEdit?.date ?: defaultDay) }
 
     //начальный текст заметки
     val initialContent = noteToEdit?.content ?: ""
@@ -62,7 +64,9 @@ fun AddNoteDialog(
             val dayName = date.format(DateTimeFormatter.ofPattern("EEEE", LOCALE_RU))
             val dateDisplay = date.format(DATE_FORMAT_DISPLAY)
             //с большой буквы день недели
-            val capitalizedDayName = dayName.replaceFirstChar { if (it.isLowerCase()) it.titlecase(LOCALE_RU) else it.toString() }
+            val capitalizedDayName = dayName.replaceFirstChar { if (it.isLowerCase()) it.titlecase(
+                LOCALE_RU
+            ) else it.toString() }
             "$capitalizedDayName, $dateDisplay"
         } catch (e: Exception) {
             selectedDay // если парсинг не удался

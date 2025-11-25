@@ -1,4 +1,4 @@
-package com.example.weekly.ui.theme
+package com.example.weekly.Presentation.theme
 
 import android.app.Activity
 import android.os.Build

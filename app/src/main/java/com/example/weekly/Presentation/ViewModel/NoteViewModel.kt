@@ -1,8 +1,10 @@
-package com.example.weekly.data
+package com.example.weekly.Presentation.ViewModel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.weekly.data.settings.SettingsManager
+import com.example.weekly.Data.Entities.NoteEntity
+import com.example.weekly.Data.NoteRepository
+import com.example.weekly.Data.Settings.SettingsManager
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -35,14 +37,14 @@ class NoteViewModel(
     }
 
     // ⭐️ StateFlow для заметок, сгруппированных по дню и отсортированных
-    val notesGroupedByDay: StateFlow<Map<String, List<Note>>> = repository.getAllNotes()
-        .map { notes: List<Note> ->
+    val notesGroupedByDay: StateFlow<Map<String, List<NoteEntity>>> = repository.getAllNotes()
+        .map { notes: List<NoteEntity> ->
             notes
-                .groupBy { it.day }  // Группируем по дню
-                .mapValues { (_, dayNotes: List<Note>) ->
+                .groupBy { it.date }  // Группируем по дню
+                .mapValues { (_, dayNotes: List<NoteEntity>) ->
                     // Сортировка: сначала по статусу isDone, затем по наличию startTime, потом по времени
                     dayNotes.sortedWith(
-                        compareBy<Note> { it.isDone }
+                        compareBy<NoteEntity> { it.isDone }
                             .thenBy { it.startTime == null }
                             .thenBy { it.startTime }
                     )
@@ -55,12 +57,12 @@ class NoteViewModel(
         )
 
     // ⭐️ Удаление заметки
-    fun deleteNote(note: Note) = viewModelScope.launch {
+    fun deleteNote(note: NoteEntity) = viewModelScope.launch {
         repository.deleteNote(note)
     }
 
     // ⭐️ Переключение статуса "выполнено/не выполнено"
-    fun toggleDoneStatus(note: Note) = viewModelScope.launch {
+    fun toggleDoneStatus(note: NoteEntity) = viewModelScope.launch {
         repository.toggleDoneStatus(note)
     }
 
@@ -68,9 +70,9 @@ class NoteViewModel(
     fun saveNote(id: Int, day: String, content: String, startTime: LocalTime?) = viewModelScope.launch {
         val existingNote = if (id != 0) repository.getNoteById(id) else null
 
-        val note = Note(
+        val note = NoteEntity(
             id = if (id == 0) 0 else id,
-            day = day,
+            date = day,
             content = content,
             isDone = existingNote?.isDone ?: false,
             startTime = startTime

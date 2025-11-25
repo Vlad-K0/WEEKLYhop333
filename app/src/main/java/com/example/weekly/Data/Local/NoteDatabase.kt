@@ -1,17 +1,19 @@
-package com.example.weekly.data
+package com.example.weekly.Data.Local
 
 import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.room.TypeConverters // ⭐️ ОБЯЗАТЕЛЬНЫЙ ИМПОРТ
+import androidx.room.TypeConverters
+import com.example.weekly.Data.Local.Converters
+import com.example.weekly.Data.Entities.NoteEntity
 
 /**
  * Основная база данных приложения для хранения заметок.
  * RoomDatabase автоматически создает DAO и управляет сущностями.
  */
 @Database(
-    entities = [Note::class], // Сущности базы данных
+    entities = [NoteEntity::class], // Сущности базы данных
     version = 3,              // Версия базы данных
     exportSchema = false      // Не сохраняем схему в папку ресурсов
 )
@@ -24,13 +26,13 @@ abstract class NoteDatabase : RoomDatabase() {
 
     companion object {
         @Volatile
-        private var Instance: NoteDatabase? = null
+        private var INSTANCE: NoteDatabase? = null
 
         /**
          * Singleton для базы данных, чтобы избежать создания нескольких экземпляров.
          */
         fun getDatabase(context: Context): NoteDatabase {
-            return Instance ?: synchronized(this) {
+            return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
                     context,
                     NoteDatabase::class.java,
@@ -39,7 +41,7 @@ abstract class NoteDatabase : RoomDatabase() {
                     // ⚠️ При изменении версии базы данных:
                     // .fallbackToDestructiveMigration() может быть полезно на этапе разработки
                     .build()
-                    .also { Instance = it }
+                    .also { INSTANCE = it }
             }
         }
     }

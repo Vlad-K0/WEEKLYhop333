@@ -1,8 +1,9 @@
-package com.example.weekly.data
+package com.example.weekly.Presentation.ViewModel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.example.weekly.data.settings.SettingsManager
+import com.example.weekly.Data.NoteRepository
+import com.example.weekly.Data.Settings.SettingsManager
 
 /**
  * Фабрика для создания NoteViewModel с параметрами.

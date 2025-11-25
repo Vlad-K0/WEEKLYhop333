@@ -1,4 +1,4 @@
-package com.example.weekly
+package com.example.weekly.Presentation.Screen
 
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -14,8 +14,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.weekly.data.Note
-import com.example.weekly.data.NoteViewModel
+import com.example.weekly.Data.Entities.NoteEntity
+import com.example.weekly.Presentation.ViewModel.NoteViewModel
+import com.example.weekly.Presentation.DATE_FORMAT_DISPLAY
+import com.example.weekly.Presentation.DATE_FORMAT_ISO
+import com.example.weekly.Presentation.LOCALE_RU
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -26,7 +29,7 @@ import java.time.temporal.TemporalAdjusters
 @Composable
 fun DayListScreen(
     onDayClick: (String) -> Unit,                 // функция, вызываемая при клике на день
-    groupedNotes: Map<String, List<Note>>,       // заметки, сгруппированные по датам
+    groupedNotes: Map<String, List<NoteEntity>>,       // заметки, сгруппированные по датам
     noteViewModel: NoteViewModel                 // ViewModel для работы с данными и темой
 ) {
     // определяем понедельник текущей недели (начало недели)
@@ -39,7 +42,9 @@ fun DayListScreen(
 
     // вычисляем конец недели и создаём строку диапазона дат
     val weekEnd = currentWeekStart.plusDays(6)
-    val weekRange = "${currentWeekStart.format(DATE_FORMAT_DISPLAY)} – ${weekEnd.format(DATE_FORMAT_DISPLAY)}"
+    val weekRange = "${currentWeekStart.format(DATE_FORMAT_DISPLAY)} – ${weekEnd.format(
+        DATE_FORMAT_DISPLAY
+    )}"
 
     // создаём список всех дней недели
     val weekDaysWithDates = remember(currentWeekStart) {
@@ -136,7 +141,7 @@ fun DayListScreen(
 
                     // формируем короткий текст
                     val noteSnippet = notes.sortedWith(
-                        compareBy<Note> { it.isDone }
+                        compareBy<NoteEntity> { it.isDone }
                             .thenBy { it.startTime }
                     ).firstOrNull { !it.isDone }?.content
                         ?: notes.firstOrNull()?.content

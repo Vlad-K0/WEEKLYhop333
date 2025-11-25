@@ -65,9 +65,10 @@ dependencies {
     // Для комбинированного клика (longClick)
     implementation("androidx.compose.foundation:foundation:1.6.7")
 
-    val room_version = "2.6.1" // Рекомендуемая версия
+
 
     // Room (База данных)
+    val room_version = "2.6.1"
     implementation("androidx.room:room-runtime:$room_version")
     implementation("androidx.room:room-ktx:$room_version") // Для корутин
     kapt("androidx.room:room-compiler:$room_version") // Обработчик аннотаций

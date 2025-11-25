@@ -1,4 +1,4 @@
-package com.example.weekly
+package com.example.weekly.Presentation.Screen
 
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -12,8 +12,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.weekly.data.Note
-import com.example.weekly.data.NoteViewModel
+import com.example.weekly.Presentation.Components.AddNoteDialog
+import com.example.weekly.Data.Entities.NoteEntity
+import com.example.weekly.Presentation.Components.NoteList
+import com.example.weekly.Presentation.ViewModel.NoteViewModel
+import com.example.weekly.Presentation.DATE_FORMAT_DISPLAY
+import com.example.weekly.Presentation.DATE_FORMAT_ISO
+import com.example.weekly.Presentation.LOCALE_RU
+import com.example.weekly.Presentation.NoteType
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.LocalTime
@@ -35,7 +41,7 @@ fun DayDetailScreen(
 
     //состояния для отображения диалога добавления/редактирования
     var showDialog by remember { mutableStateOf(false) }       //показывать ли диалог
-    var noteToEdit: Note? by remember { mutableStateOf(null) } //редактируемая заметка
+    var noteToEdit: NoteEntity? by remember { mutableStateOf(null) } //редактируемая заметка
     var pendingNoteType: NoteType? by remember { mutableStateOf(null) } //тип новой заметки
 
     // открытие диалога для создания новой заметки
@@ -46,7 +52,7 @@ fun DayDetailScreen(
     }
 
     // открытие диалога для редактирования существующей заметки
-    fun openEditDialog(note: Note?) {
+    fun openEditDialog(note: NoteEntity?) {
         noteToEdit = note
         pendingNoteType = null     // тип не нужен — определится по note
         showDialog = true

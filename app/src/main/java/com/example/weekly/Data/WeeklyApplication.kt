@@ -1,12 +1,13 @@
-package com.example.weekly.data
+package com.example.weekly.Data
 
 import android.app.Application
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore // <-- НОВЫЙ ИМПОРТ
+import com.example.weekly.Data.Local.NoteDatabase
 
-import com.example.weekly.data.settings.SettingsManager // <-- НОВЫЙ ИМПОРТ
+import com.example.weekly.Data.Settings.SettingsManager // <-- НОВЫЙ ИМПОРТ
 
 
 // ⭐️ 1. ГЛОБАЛЬНАЯ ИНИЦИАЛИЗАЦИЯ DATASTORE
