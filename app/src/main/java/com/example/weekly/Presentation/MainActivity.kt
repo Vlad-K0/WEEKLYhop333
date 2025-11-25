@@ -8,24 +8,15 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavHostController
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import com.example.weekly.Presentation.ViewModel.NoteViewModel
 import com.example.weekly.Data.WeeklyApplication
-import com.example.weekly.Presentation.Screen.DayDetailScreen
-import com.example.weekly.Presentation.Screen.DayListScreen
-import com.example.weekly.Presentation.Screen.Screen
 import com.example.weekly.Presentation.theme.WEEKLYTheme
-import java.time.LocalDate
+import com.example.weekly.Presentation.Navigation.WeeklyNavGraph
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -59,57 +50,21 @@ class MainActivity : ComponentActivity() {
             //инициализируем ViewModel с обновленной Factory
             val noteViewModel: NoteViewModel = viewModel(factory = noteViewModelFactory)
 
-            //собираем текущее состояние темы
-            val isDarkTheme by noteViewModel.isDarkTheme.collectAsState()
+            //собираем текущее состояние из uiState
+            val state by noteViewModel.uiState.collectAsState()
 
             //передаем собранное состояние в тему
-            WEEKLYTheme(darkTheme = isDarkTheme) {
+            WEEKLYTheme(darkTheme = state.isDarkTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    WeeklyNavHost(
+                    WeeklyNavGraph(
                         noteViewModel = noteViewModel,
                         navController = navController
                     )
                 }
             }
-        }
-    }
-}
-
-@RequiresApi(Build.VERSION_CODES.O)
-@Composable
-//навигация между экранами
-fun WeeklyNavHost(noteViewModel: NoteViewModel, navController: NavHostController) {
-
-    val groupedNotes by noteViewModel.notesGroupedByDay.collectAsState()
-
-    NavHost(
-        navController = navController,
-        startDestination = Screen.DayList.route
-    ) {
-        composable(Screen.DayList.route) {
-            DayListScreen(
-                groupedNotes = groupedNotes,
-                onDayClick = { dayISO ->
-                    navController.navigate(Screen.DayDetail.createRoute(dayISO))
-                },
-                noteViewModel = noteViewModel
-            )
-        }
-
-        composable(
-            route = Screen.DayDetail.route,
-            arguments = listOf(navArgument("day") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val selectedDay = backStackEntry.arguments?.getString("day") ?: LocalDate.now().format(DATE_FORMAT_ISO)
-
-            DayDetailScreen(
-                selectedDay = selectedDay,
-                noteViewModel = noteViewModel,
-                onBack = { navController.popBackStack() }
-            )
         }
     }
 }

@@ -10,7 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.weekly.Data.Entities.NoteEntity
+import com.example.weekly.Domain.Model.Note
 import com.example.weekly.Presentation.DATE_FORMAT_DISPLAY
 import com.example.weekly.Presentation.DATE_FORMAT_ISO
 import com.example.weekly.Presentation.LOCALE_RU
@@ -24,7 +24,7 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddNoteDialog(
-    noteToEdit: NoteEntity?, //если не null — редактируем существующую заметку
+    noteToEdit: Note?, //если не null — редактируем существующую заметку
     isTask: Boolean, //тип создаваемого элемента (дело или обычная заметка)
     defaultDay: String, //день, к которому будет добавлена заметка
     onDismiss: () -> Unit, // акрытие диалога

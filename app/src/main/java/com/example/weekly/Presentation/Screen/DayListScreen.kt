@@ -14,42 +14,29 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.weekly.Data.Entities.NoteEntity
+import com.example.weekly.Domain.Model.Note
 import com.example.weekly.Presentation.ViewModel.NoteViewModel
 import com.example.weekly.Presentation.DATE_FORMAT_DISPLAY
 import com.example.weekly.Presentation.DATE_FORMAT_ISO
 import com.example.weekly.Presentation.LOCALE_RU
-import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.time.temporal.TemporalAdjusters
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DayListScreen(
     onDayClick: (String) -> Unit,                 // функция, вызываемая при клике на день
-    groupedNotes: Map<String, List<NoteEntity>>,       // заметки, сгруппированные по датам
     noteViewModel: NoteViewModel                 // ViewModel для работы с данными и темой
 ) {
-    // определяем понедельник текущей недели (начало недели)
-    var currentWeekStart by remember {
-        mutableStateOf(LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)))
-    }
-
-    // подписываемся на состояние темы из DataStore через Flow
-    val isDark by noteViewModel.isDarkTheme.collectAsState()
+    // 1. Подписываемся на ЕДИНЫЙ стейт
+    val state by noteViewModel.uiState.collectAsState()
 
     // вычисляем конец недели и создаём строку диапазона дат
-    val weekEnd = currentWeekStart.plusDays(6)
-    val weekRange = "${currentWeekStart.format(DATE_FORMAT_DISPLAY)} – ${weekEnd.format(
+    val weekEnd = state.currentWeekStart.plusDays(6)
+    val weekRange = "${state.currentWeekStart.format(DATE_FORMAT_DISPLAY)} – ${weekEnd.format(
         DATE_FORMAT_DISPLAY
     )}"
-
-    // создаём список всех дней недели
-    val weekDaysWithDates = remember(currentWeekStart) {
-        (0L..6L).map { offset -> currentWeekStart.plusDays(offset) }
-    }
 
     //сегодняшняя дата (для подсветки)
     val today = LocalDate.now()
@@ -73,12 +60,12 @@ fun DayListScreen(
                         modifier = Modifier.padding(horizontal = 8.dp)
                     ) {
                         Text(
-                            text = if (isDark) "Тёмная" else "Светлая", // Надпись рядом со Switch
+                            text = if (state.isDarkTheme) "Тёмная" else "Светлая", // Надпись рядом со Switch
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Spacer(Modifier.width(8.dp))
                         Switch(
-                            checked = isDark,
+                            checked = state.isDarkTheme,
                             onCheckedChange = { noteViewModel.toggleTheme(it) } // Меняем тему через ViewModel
                         )
                     }
@@ -106,7 +93,7 @@ fun DayListScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 //предыдущая неделя
-                IconButton(onClick = { currentWeekStart = currentWeekStart.minusWeeks(1) }) {
+                IconButton(onClick = { noteViewModel.onPreviousWeekClick() }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Предыдущая неделя")
                 }
 
@@ -117,7 +104,7 @@ fun DayListScreen(
                 )
 
                 //следующая неделя
-                IconButton(onClick = { currentWeekStart = currentWeekStart.plusWeeks(1) }) {
+                IconButton(onClick = { noteViewModel.onNextWeekClick() }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Следующая неделя")
                 }
             }
@@ -127,7 +114,7 @@ fun DayListScreen(
 
             // список всех дней текущей недели
             LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(weekDaysWithDates) { date ->
+                items(state.weekDates) { date ->
 
                     // форматируем дату в ISO и получаем имя дня недели
                     val dateStringISO = date.format(DATE_FORMAT_ISO)
@@ -137,11 +124,11 @@ fun DayListScreen(
                     val isToday = date.isEqual(today)
 
                     //получаем заметки для текущего дня (если нет — пустой список)
-                    val notes = groupedNotes[dateStringISO] ?: emptyList()
+                    val notes = state.notes[dateStringISO] ?: emptyList()
 
                     // формируем короткий текст
                     val noteSnippet = notes.sortedWith(
-                        compareBy<NoteEntity> { it.isDone }
+                        compareBy<Note> { it.isDone }
                             .thenBy { it.startTime }
                     ).firstOrNull { !it.isDone }?.content
                         ?: notes.firstOrNull()?.content
@@ -198,3 +185,4 @@ fun DayListScreen(
         }
     }
 }
+

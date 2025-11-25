@@ -11,11 +11,9 @@ import com.example.weekly.Domain.Usecase.NoteUseCases.SaveNoteUseCase
 import com.example.weekly.Domain.Usecase.NoteUseCases.ToggleDoneStatusUseCase
 import com.example.weekly.Presentation.State.DayListUiState
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
@@ -33,23 +31,25 @@ class NoteViewModel(
     private val getThemeUseCase: GetThemeUseCase,
     private val deleteUseCase: DeleteUseCase,
     private val saveNoteUseCase: SaveNoteUseCase,
-    private val toggleDoneStatusUseCase: ToggleDoneStatusUseCase, // Менеджер настроек для работы с темой
+    private val toggleDoneStatusUseCase: ToggleDoneStatusUseCase,
     private val toggleThemeUseCase: ToggleThemeUseCase
 ) : ViewModel() {
 
-    // DayListState НАЧАЛО
+    // 1. Внутренний MutableStateFlow, который мы меняем
     private val _uiState = MutableStateFlow(DayListUiState())
+    
+    // 2. Публичный StateFlow, который слушает UI (только для чтения)
     val uiState: StateFlow<DayListUiState> = _uiState.asStateFlow()
 
     init {
-
+        // Инициализация: загружаем тему, заметки и вычисляем даты
         loadInitialData()
     }
 
     private fun loadInitialData() {
         // Запускаем корутину для сбора данных
         viewModelScope.launch {
-            // Пример объединения потоков (можно делать иначе, но суть одна)
+            // Пример объединения потоков
             combine(
                 getOrderedNotesUseCase(),
                 getThemeUseCase()
@@ -64,7 +64,7 @@ class NoteViewModel(
                 _uiState.update { newState }
             }
         }
-
+        
         // Инициализируем даты недели
         updateWeekDates(LocalDate.now())
     }
@@ -81,52 +81,34 @@ class NoteViewModel(
     }
 
     private fun updateWeekDates(startDate: LocalDate) {
-        // Логика вычисления дней недели (была в UI, теперь тут)
+        // Логика вычисления дней недели
         val startOfWeek = startDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         val days = (0L..6L).map { startOfWeek.plusDays(it) }
-
+        
         _uiState.update { it.copy(
             currentWeekStart = startOfWeek,
             weekDates = days
         )}
     }
-    // ОКОНЧАНИЕ STATE NOTE
 
-
-    // ⭐️ StateFlow для наблюдения за темой (темная/светлая)
-    val isDarkTheme: StateFlow<Boolean> = getThemeUseCase().stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = false
-    )
-
-    // ⭐️ StateFlow для заметок, сгруппированных по дню и отсортированных
-    val notesGroupedByDay: StateFlow<Map<String, List<Note>>> = getOrderedNotesUseCase()
-        .stateIn(
-            started = SharingStarted.WhileSubscribed(5000),
-            scope = viewModelScope,
-            initialValue = emptyMap()
-        )
-
-
-    // ⭐️ Функция для переключения темы
+    // Функция для переключения темы
     fun toggleTheme(isDark: Boolean) {
         viewModelScope.launch {
             toggleThemeUseCase(isDark)
         }
     }
 
-    // ⭐️ Удаление заметки
+    // Удаление заметки
     fun deleteNote(note: Note) = viewModelScope.launch {
         deleteUseCase(note)
     }
 
-    // ⭐️ Переключение статуса "выполнено/не выполнено"
+    // Переключение статуса "выполнено/не выполнено"
     fun toggleDoneStatus(note: Note) = viewModelScope.launch {
         toggleDoneStatusUseCase(note)
     }
 
-    // ⭐️ Сохранение новой или редактирование существующей заметки
+    // Сохранение новой или редактирование существующей заметки
     fun saveNote(id: Int, date: String, content: String, startTime: LocalTime?) =
         viewModelScope.launch {
             saveNoteUseCase(id, date, content, startTime)

@@ -13,7 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.weekly.Presentation.Components.AddNoteDialog
-import com.example.weekly.Data.Entities.NoteEntity
+import com.example.weekly.Domain.Model.Note
 import com.example.weekly.Presentation.Components.NoteList
 import com.example.weekly.Presentation.ViewModel.NoteViewModel
 import com.example.weekly.Presentation.DATE_FORMAT_DISPLAY
@@ -33,15 +33,15 @@ fun DayDetailScreen(
     noteViewModel: NoteViewModel,  // ViewModel для управления заметками
     onBack: () -> Unit             // функция для возврата назад
 ) {
-    //подписка на Flow с заметками, сгруппированными по дню
-    val allNotes by noteViewModel.notesGroupedByDay.collectAsState()
+    // 1. Подписываемся на ЕДИНЫЙ стейт
+    val state by noteViewModel.uiState.collectAsState()
 
-    //берём список заметок только для выбранного дня
-    val dayNotes = allNotes[selectedDay] ?: emptyList()
+    // 2. Берём список заметок только для выбранного дня
+    val dayNotes = state.notes[selectedDay] ?: emptyList()
 
     //состояния для отображения диалога добавления/редактирования
     var showDialog by remember { mutableStateOf(false) }       //показывать ли диалог
-    var noteToEdit: NoteEntity? by remember { mutableStateOf(null) } //редактируемая заметка
+    var noteToEdit: Note? by remember { mutableStateOf(null) } //редактируемая заметка
     var pendingNoteType: NoteType? by remember { mutableStateOf(null) } //тип новой заметки
 
     // открытие диалога для создания новой заметки
@@ -52,7 +52,7 @@ fun DayDetailScreen(
     }
 
     // открытие диалога для редактирования существующей заметки
-    fun openEditDialog(note: NoteEntity?) {
+    fun openEditDialog(note: Note?) {
         noteToEdit = note
         pendingNoteType = null     // тип не нужен — определится по note
         showDialog = true
