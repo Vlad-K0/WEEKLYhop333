@@ -1,8 +1,11 @@
 package com.example.weekly.Domain.Model
 
+import java.time.LocalTime
+
 data class Note(
-    val id: Long,
-    val title: String,
+    val id: Int,
     val content: String,
-    val categoryId: Long
+    val date: String,
+    val isDone: Boolean,
+    val startTime: LocalTime?
 )

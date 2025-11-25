@@ -6,6 +6,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore // <-- НОВЫЙ ИМПОРТ
 import com.example.weekly.Data.Local.NoteDatabase
+import com.example.weekly.Data.Repository.NoteRepositoryImpl
 
 import com.example.weekly.Data.Settings.SettingsManager // <-- НОВЫЙ ИМПОРТ
 
@@ -31,7 +32,7 @@ class WeeklyApplication : Application() {
     // 📦 ИНИЦИАЛИЗАЦИЯ РЕПОЗИТОРИЯ
     // Репозиторий — слой, через который ViewModel работает с БД.
     // В него передаётся DAO (data access object) из базы.
-    val repository by lazy { NoteRepository(database.noteDao()) }
+    val repository by lazy { NoteRepositoryImpl(database.noteDao()) }
 
     // 🌙 ИНИЦИАЛИЗАЦИЯ DATASTORE ЧЕРЕЗ SettingsManager
     // SettingsManager — отдельный класс, который управляет настройками приложения
