@@ -2,7 +2,8 @@ package com.example.weekly.Presentation.ViewModel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.example.weekly.Data.Settings.SettingsManager
+import com.example.weekly.Domain.Usecase.ThemeUseCase.GetThemeUseCase
+import com.example.weekly.Domain.Usecase.ThemeUseCase.ToggleThemeUseCase
 import com.example.weekly.Domain.Usecase.NoteUseCases.DeleteUseCase
 import com.example.weekly.Domain.Usecase.NoteUseCases.GetOrderedNotesUseCase
 import com.example.weekly.Domain.Usecase.NoteUseCases.SaveNoteUseCase
@@ -19,7 +20,8 @@ class NoteViewModelFactory(
     private val deleteUseCase: DeleteUseCase,
     private val saveNoteUseCase: SaveNoteUseCase,
     private val toggleDoneStatusUseCase: ToggleDoneStatusUseCase,
-    private val settingsManager: SettingsManager   // Менеджер настроек для темы
+    private val toggleThemeUseCase: ToggleThemeUseCase,
+    private val getThemeUseCase: GetThemeUseCase
 ) : ViewModelProvider.Factory {
 
     /**
@@ -32,10 +34,11 @@ class NoteViewModelFactory(
             @Suppress("UNCHECKED_CAST")
             return NoteViewModel(
                 getOrderedNotesUseCase,
+                getThemeUseCase,
                 deleteUseCase,
                 saveNoteUseCase,
                 toggleDoneStatusUseCase,
-                settingsManager
+                toggleThemeUseCase
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
