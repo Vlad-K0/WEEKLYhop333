@@ -2,12 +2,14 @@ package com.example.weekly.Presentation.ViewModel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.weekly.Data.Entities.NoteEntity
-import com.example.weekly.Data.NoteRepository
 import com.example.weekly.Data.Settings.SettingsManager
+import com.example.weekly.Domain.Model.Note
+import com.example.weekly.Domain.Usecase.NoteUseCases.DeleteUseCase
+import com.example.weekly.Domain.Usecase.NoteUseCases.GetOrderedNotesUseCase
+import com.example.weekly.Domain.Usecase.NoteUseCases.SaveNoteUseCase
+import com.example.weekly.Domain.Usecase.NoteUseCases.ToggleDoneStatusUseCase
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalTime
@@ -18,7 +20,10 @@ import java.time.LocalTime
  * ⭐️ Добавлен SettingsManager для управления темой через DataStore
  */
 class NoteViewModel(
-    private val repository: NoteRepository,         // Репозиторий для CRUD операций с заметками
+    getOrderedNotesUseCase: GetOrderedNotesUseCase,
+    private val deleteUseCase: DeleteUseCase,
+    private val saveNoteUseCase: SaveNoteUseCase,
+    private val toggleDoneStatusUseCase: ToggleDoneStatusUseCase,
     private val settingsManager: SettingsManager    // Менеджер настроек для работы с темой
 ) : ViewModel() {
 
@@ -29,6 +34,15 @@ class NoteViewModel(
         initialValue = false                        // По умолчанию светлая тема
     )
 
+    // ⭐️ StateFlow для заметок, сгруппированных по дню и отсортированных
+    val notesGroupedByDay: StateFlow<Map<String, List<Note>>> = getOrderedNotesUseCase()
+        .stateIn(
+            started = SharingStarted.WhileSubscribed(5000),
+            scope = viewModelScope,
+            initialValue = emptyMap()
+        )
+
+
     // ⭐️ Функция для переключения темы
     fun toggleTheme(isDark: Boolean) {
         viewModelScope.launch {
@@ -36,47 +50,19 @@ class NoteViewModel(
         }
     }
 
-    // ⭐️ StateFlow для заметок, сгруппированных по дню и отсортированных
-    val notesGroupedByDay: StateFlow<Map<String, List<NoteEntity>>> = repository.getAllNotes()
-        .map { notes: List<NoteEntity> ->
-            notes
-                .groupBy { it.date }  // Группируем по дню
-                .mapValues { (_, dayNotes: List<NoteEntity>) ->
-                    // Сортировка: сначала по статусу isDone, затем по наличию startTime, потом по времени
-                    dayNotes.sortedWith(
-                        compareBy<NoteEntity> { it.isDone }
-                            .thenBy { it.startTime == null }
-                            .thenBy { it.startTime }
-                    )
-                }
-        }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyMap()  // Изначально пустой список
-        )
-
     // ⭐️ Удаление заметки
-    fun deleteNote(note: NoteEntity) = viewModelScope.launch {
-        repository.deleteNote(note)
+    fun deleteNote(note: Note) = viewModelScope.launch {
+        deleteUseCase(note)
     }
 
     // ⭐️ Переключение статуса "выполнено/не выполнено"
-    fun toggleDoneStatus(note: NoteEntity) = viewModelScope.launch {
-        repository.toggleDoneStatus(note)
+    fun toggleDoneStatus(note: Note) = viewModelScope.launch {
+        toggleDoneStatusUseCase(note)
     }
 
     // ⭐️ Сохранение новой или редактирование существующей заметки
-    fun saveNote(id: Int, day: String, content: String, startTime: LocalTime?) = viewModelScope.launch {
-        val existingNote = if (id != 0) repository.getNoteById(id) else null
-
-        val note = NoteEntity(
-            id = if (id == 0) 0 else id,
-            date = day,
-            content = content,
-            isDone = existingNote?.isDone ?: false,
-            startTime = startTime
-        )
-        repository.upsertNote(note) // Добавляем или обновляем заметку
-    }
+    fun saveNote(id: Int, date: String, content: String, startTime: LocalTime?) =
+        viewModelScope.launch {
+            saveNoteUseCase(id, date, content, startTime)
+        }
 }

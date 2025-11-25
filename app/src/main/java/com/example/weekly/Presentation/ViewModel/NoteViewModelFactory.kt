@@ -2,8 +2,11 @@ package com.example.weekly.Presentation.ViewModel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.example.weekly.Data.NoteRepository
 import com.example.weekly.Data.Settings.SettingsManager
+import com.example.weekly.Domain.Usecase.NoteUseCases.DeleteUseCase
+import com.example.weekly.Domain.Usecase.NoteUseCases.GetOrderedNotesUseCase
+import com.example.weekly.Domain.Usecase.NoteUseCases.SaveNoteUseCase
+import com.example.weekly.Domain.Usecase.NoteUseCases.ToggleDoneStatusUseCase
 
 /**
  * Фабрика для создания NoteViewModel с параметрами.
@@ -12,7 +15,10 @@ import com.example.weekly.Data.Settings.SettingsManager
  * чтобы ViewModel могла работать с настройками темы пользователя через DataStore.
  */
 class NoteViewModelFactory(
-    private val repository: NoteRepository,        // Репозиторий для работы с заметками/делами
+    private val getOrderedNotesUseCase: GetOrderedNotesUseCase,
+    private val deleteUseCase: DeleteUseCase,
+    private val saveNoteUseCase: SaveNoteUseCase,
+    private val toggleDoneStatusUseCase: ToggleDoneStatusUseCase,
     private val settingsManager: SettingsManager   // Менеджер настроек для темы
 ) : ViewModelProvider.Factory {
 
@@ -24,7 +30,13 @@ class NoteViewModelFactory(
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(NoteViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return NoteViewModel(repository, settingsManager) as T
+            return NoteViewModel(
+                getOrderedNotesUseCase,
+                deleteUseCase,
+                saveNoteUseCase,
+                toggleDoneStatusUseCase,
+                settingsManager
+            ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

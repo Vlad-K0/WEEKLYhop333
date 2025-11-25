@@ -20,7 +20,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.weekly.Presentation.ViewModel.NoteViewModel
-import com.example.weekly.Presentation.ViewModel.NoteViewModelFactory
 import com.example.weekly.Data.WeeklyApplication
 import com.example.weekly.Presentation.Screen.DayDetailScreen
 import com.example.weekly.Presentation.Screen.DayListScreen
@@ -52,11 +51,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val application = application as WeeklyApplication
-
-        val noteViewModelFactory = NoteViewModelFactory(
-            repository = application.repository,
-            settingsManager = application.settingsManager
-        )
+        val noteViewModelFactory = application.container.noteViewModelFactory
 
         setContent {
             val navController = rememberNavController()
