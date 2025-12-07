@@ -25,12 +25,17 @@ import java.time.LocalTime
 import java.time.temporal.TemporalAdjusters
 
 class NoteViewModel(
+    // Заметки
     private val getOrderedNotesUseCase: GetOrderedNotesUseCase,
-    private val getThemeUseCase: GetThemeUseCase,
     private val deleteUseCase: DeleteUseCase,
     private val saveNoteUseCase: SaveNoteUseCase,
     private val toggleDoneStatusUseCase: ToggleDoneStatusUseCase,
+
+    // Тема
+    private val getThemeUseCase: GetThemeUseCase,
     private val toggleThemeUseCase: ToggleThemeUseCase,
+
+    // Группы
     private val getAllGroupsUseCase: GetAllGroupsUseCase,
     private val saveGroupUseCase: SaveGroupUseCase,
     private val deleteGroupUseCase: DeleteGroupUseCase
