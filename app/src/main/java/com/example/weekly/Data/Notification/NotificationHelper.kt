@@ -69,12 +69,4 @@ class NotificationHelper(private val context: Context) {
         notificationManager.notify(noteId, notification)
     }
 
-    /**
-     * Отменяет уведомление по ID.
-     * 
-     * @param noteId ID заметки/уведомления для отмены
-     */
-    fun cancelNotification(noteId: Int) {
-        notificationManager.cancel(noteId)
-    }
 }

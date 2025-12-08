@@ -36,7 +36,6 @@ class AppContainer(context: Context) {
     val settingsManager = SettingsManager(context.dataStore)
 
     // 2. Notification & API Infrastructure
-    val notificationHelper = NotificationHelper(context)
     private val alarmScheduler = AlarmScheduler(context)
     private val isDayOffApiService = IsDayOffApiService()
 
