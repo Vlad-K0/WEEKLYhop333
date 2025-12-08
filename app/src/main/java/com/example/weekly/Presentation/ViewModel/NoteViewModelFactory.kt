@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.example.weekly.Domain.Usecase.GroupUseCases.DeleteGroupUseCase
 import com.example.weekly.Domain.Usecase.GroupUseCases.GetAllGroupsUseCase
 import com.example.weekly.Domain.Usecase.GroupUseCases.SaveGroupUseCase
+import com.example.weekly.Domain.Usecase.HolidayUseCases.GetHolidaysForWeekUseCase
 import com.example.weekly.Domain.Usecase.ThemeUseCase.GetThemeUseCase
 import com.example.weekly.Domain.Usecase.ThemeUseCase.ToggleThemeUseCase
 import com.example.weekly.Domain.Usecase.NoteUseCases.DeleteUseCase
@@ -16,9 +17,6 @@ import com.example.weekly.Domain.Usecase.NotificationUseCases.ScheduleNotificati
 
 /**
  * Factory для создания NoteViewModel с зависимостями.
- * 
- * Используется вместо Hilt/Dagger для ручного DI.
- * Создаётся в AppContainer и передаётся в Compose.
  */
 class NoteViewModelFactory(
     private val getOrderedNotesUseCase: GetOrderedNotesUseCase,
@@ -30,9 +28,10 @@ class NoteViewModelFactory(
     private val getAllGroupsUseCase: GetAllGroupsUseCase,
     private val saveGroupUseCase: SaveGroupUseCase,
     private val deleteGroupUseCase: DeleteGroupUseCase,
-    // Уведомления
     private val scheduleNotificationUseCase: ScheduleNotificationUseCase,
-    private val cancelNotificationUseCase: CancelNotificationUseCase
+    private val cancelNotificationUseCase: CancelNotificationUseCase,
+    // Праздники
+    private val getHolidaysForWeekUseCase: GetHolidaysForWeekUseCase
 ) : ViewModelProvider.Factory {
 
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -49,7 +48,8 @@ class NoteViewModelFactory(
                 saveGroupUseCase,
                 deleteGroupUseCase,
                 scheduleNotificationUseCase,
-                cancelNotificationUseCase
+                cancelNotificationUseCase,
+                getHolidaysForWeekUseCase
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")

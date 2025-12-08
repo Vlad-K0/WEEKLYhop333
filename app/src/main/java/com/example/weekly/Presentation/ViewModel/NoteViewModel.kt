@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.weekly.Domain.Usecase.GroupUseCases.DeleteGroupUseCase
 import com.example.weekly.Domain.Usecase.GroupUseCases.GetAllGroupsUseCase
 import com.example.weekly.Domain.Usecase.GroupUseCases.SaveGroupUseCase
+import com.example.weekly.Domain.Usecase.HolidayUseCases.GetHolidaysForWeekUseCase
 import com.example.weekly.Domain.Usecase.ThemeUseCase.GetThemeUseCase
 import com.example.weekly.Domain.Usecase.ThemeUseCase.ToggleThemeUseCase
 import com.example.weekly.Domain.Model.Note
@@ -44,7 +45,10 @@ class NoteViewModel(
 
     // Уведомления
     private val scheduleNotificationUseCase: ScheduleNotificationUseCase,
-    private val cancelNotificationUseCase: CancelNotificationUseCase
+    private val cancelNotificationUseCase: CancelNotificationUseCase,
+
+    // Праздники
+    private val getHolidaysForWeekUseCase: GetHolidaysForWeekUseCase
 ) : ViewModel() {
 
     // Внутренний MutableStateFlow
@@ -107,6 +111,22 @@ class NoteViewModel(
             currentWeekStart = startOfWeek,
             weekDates = days
         )}
+        
+        // Загружаем праздники для новой недели
+        loadHolidays(startOfWeek)
+    }
+
+    // Загрузка праздников для текущей недели
+    private fun loadHolidays(weekStart: LocalDate) {
+        viewModelScope.launch {
+            try {
+                val holidays = getHolidaysForWeekUseCase(weekStart)
+                _uiState.update { it.copy(holidays = holidays) }
+            } catch (e: Exception) {
+                // При ошибке просто не показываем праздники
+                _uiState.update { it.copy(holidays = emptyMap()) }
+            }
+        }
     }
 
     // Выбор группы для фильтрации

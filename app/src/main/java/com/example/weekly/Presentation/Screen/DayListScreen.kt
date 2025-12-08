@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.weekly.Domain.Model.DayType
 import com.example.weekly.Domain.Model.Note
 import com.example.weekly.Presentation.Components.GroupManagementDialog
 import com.example.weekly.Presentation.ViewModel.NoteViewModel
@@ -177,6 +178,11 @@ fun DayListScreen(
                     //проверяем, совпадает ли с сегодняшним днём
                     val isToday = date.isEqual(today)
 
+                    // Проверяем праздник
+                    val holidayInfo = state.holidays[date]
+                    val isHoliday = holidayInfo != null && 
+                        (holidayInfo.dayType == DayType.HOLIDAY || holidayInfo.holidayName != null)
+
                     //получаем заметки для текущего дня (если нет — пустой список)
                     val notes = state.notes[dateStringISO] ?: emptyList()
 
@@ -197,6 +203,8 @@ fun DayListScreen(
                         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = when {
+                                // Праздник — красноватый/розовый цвет
+                                isHoliday -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f)
                                 //если сегодня — подсвечиваем карточку
                                 isToday -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f)
                                 else -> MaterialTheme.colorScheme.surface
@@ -214,12 +222,20 @@ fun DayListScreen(
                                 Text(
                                     text = dayName, //название дня
                                     style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = if (isHoliday) {
+                                        MaterialTheme.colorScheme.onErrorContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    }
                                 )
                                 Text(
                                     text = date.format(DATE_FORMAT_DISPLAY), // форматированная дата
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                    color = if (isHoliday) {
+                                        MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                    }
                                 )
                             }
 
@@ -230,8 +246,22 @@ fun DayListScreen(
                                 text = noteSnippet,
                                 style = MaterialTheme.typography.bodyMedium,
                                 maxLines = 1,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                color = if (isHoliday) {
+                                    MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                }
                             )
+
+                            // Название праздника (если есть)
+                            if (holidayInfo?.holidayName != null) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "🎉 ${holidayInfo.holidayName}",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
                         }
                     }
                 }
@@ -253,4 +283,3 @@ fun DayListScreen(
         )
     }
 }
-
