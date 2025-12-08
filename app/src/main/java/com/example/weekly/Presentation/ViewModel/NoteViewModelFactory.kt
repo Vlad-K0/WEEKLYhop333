@@ -11,7 +11,15 @@ import com.example.weekly.Domain.Usecase.NoteUseCases.DeleteUseCase
 import com.example.weekly.Domain.Usecase.NoteUseCases.GetOrderedNotesUseCase
 import com.example.weekly.Domain.Usecase.NoteUseCases.SaveNoteUseCase
 import com.example.weekly.Domain.Usecase.NoteUseCases.ToggleDoneStatusUseCase
+import com.example.weekly.Domain.Usecase.NotificationUseCases.CancelNotificationUseCase
+import com.example.weekly.Domain.Usecase.NotificationUseCases.ScheduleNotificationUseCase
 
+/**
+ * Factory для создания NoteViewModel с зависимостями.
+ * 
+ * Используется вместо Hilt/Dagger для ручного DI.
+ * Создаётся в AppContainer и передаётся в Compose.
+ */
 class NoteViewModelFactory(
     private val getOrderedNotesUseCase: GetOrderedNotesUseCase,
     private val deleteUseCase: DeleteUseCase,
@@ -21,7 +29,10 @@ class NoteViewModelFactory(
     private val getThemeUseCase: GetThemeUseCase,
     private val getAllGroupsUseCase: GetAllGroupsUseCase,
     private val saveGroupUseCase: SaveGroupUseCase,
-    private val deleteGroupUseCase: DeleteGroupUseCase
+    private val deleteGroupUseCase: DeleteGroupUseCase,
+    // Уведомления
+    private val scheduleNotificationUseCase: ScheduleNotificationUseCase,
+    private val cancelNotificationUseCase: CancelNotificationUseCase
 ) : ViewModelProvider.Factory {
 
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -29,14 +40,16 @@ class NoteViewModelFactory(
             @Suppress("UNCHECKED_CAST")
             return NoteViewModel(
                 getOrderedNotesUseCase,
-                getThemeUseCase,
                 deleteUseCase,
                 saveNoteUseCase,
                 toggleDoneStatusUseCase,
+                getThemeUseCase,
                 toggleThemeUseCase,
                 getAllGroupsUseCase,
                 saveGroupUseCase,
-                deleteGroupUseCase
+                deleteGroupUseCase,
+                scheduleNotificationUseCase,
+                cancelNotificationUseCase
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")

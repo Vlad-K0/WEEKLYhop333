@@ -2,8 +2,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Разрешения для уведомлений -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+
     <application
-        android:name=".Data.WeeklyApplication"  android:allowBackup="true"
+        android:name=".Data.WeeklyApplication"
+        android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
@@ -13,7 +19,8 @@
         android:theme="@style/Theme.WEEKLY">
 
         <activity
-            android:name=".Presentation.MainActivity"  android:exported="true"
+            android:name=".Presentation.MainActivity"
+            android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.WEEKLY">
             <intent-filter>
@@ -21,6 +28,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Receiver для обработки уведомлений -->
+        <receiver
+            android:name=".Data.Notification.NotificationReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

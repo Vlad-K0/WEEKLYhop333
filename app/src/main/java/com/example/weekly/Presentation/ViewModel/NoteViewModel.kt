@@ -12,6 +12,8 @@ import com.example.weekly.Domain.Usecase.NoteUseCases.DeleteUseCase
 import com.example.weekly.Domain.Usecase.NoteUseCases.GetOrderedNotesUseCase
 import com.example.weekly.Domain.Usecase.NoteUseCases.SaveNoteUseCase
 import com.example.weekly.Domain.Usecase.NoteUseCases.ToggleDoneStatusUseCase
+import com.example.weekly.Domain.Usecase.NotificationUseCases.CancelNotificationUseCase
+import com.example.weekly.Domain.Usecase.NotificationUseCases.ScheduleNotificationUseCase
 import com.example.weekly.Presentation.State.DayListUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,7 +40,11 @@ class NoteViewModel(
     // Группы
     private val getAllGroupsUseCase: GetAllGroupsUseCase,
     private val saveGroupUseCase: SaveGroupUseCase,
-    private val deleteGroupUseCase: DeleteGroupUseCase
+    private val deleteGroupUseCase: DeleteGroupUseCase,
+
+    // Уведомления
+    private val scheduleNotificationUseCase: ScheduleNotificationUseCase,
+    private val cancelNotificationUseCase: CancelNotificationUseCase
 ) : ViewModel() {
 
     // Внутренний MutableStateFlow
@@ -119,11 +125,17 @@ class NoteViewModel(
 
     // Удаление заметки
     fun deleteNote(note: Note) = viewModelScope.launch {
+        // Отменяем уведомление при удалении
+        cancelNotificationUseCase(note.id)
         deleteUseCase(note)
     }
 
     // Переключение статуса "выполнено/не выполнено"
     fun toggleDoneStatus(note: Note) = viewModelScope.launch {
+        // Если задача выполнена - отменяем уведомление
+        if (!note.isDone) {
+            cancelNotificationUseCase(note.id)
+        }
         toggleDoneStatusUseCase(note)
     }
 
@@ -136,6 +148,19 @@ class NoteViewModel(
         groupId: Int? = null
     ) = viewModelScope.launch {
         saveNoteUseCase(id, date, content, startTime, groupId)
+        
+        // Планируем уведомление если есть время
+        if (startTime != null) {
+            val note = Note(
+                id = id,
+                content = content,
+                date = date,
+                isDone = false,
+                startTime = startTime,
+                groupId = groupId
+            )
+            scheduleNotificationUseCase(note)
+        }
     }
     
     // Сохранение группы
