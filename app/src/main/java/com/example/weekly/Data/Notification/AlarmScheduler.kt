@@ -35,42 +35,47 @@ class AlarmScheduler(private val context: Context) {
      * @param note Заметка с временем startTime
      */
     fun scheduleNotification(note: Note) {
-        // Если нет времени - не планируем
-        val startTime = note.startTime ?: return
+        try {
+            // Если нет времени - не планируем
+            val startTime = note.startTime ?: return
 
-        // Вычисляем время срабатывания
-        val triggerTime = calculateTriggerTime(note.date, startTime)
-        
-        // Если время уже прошло - не планируем
-        if (triggerTime <= System.currentTimeMillis()) return
+            // Вычисляем время срабатывания
+            val triggerTime = calculateTriggerTime(note.date, startTime)
+            
+            // Если время уже прошло - не планируем
+            if (triggerTime <= System.currentTimeMillis()) return
 
-        val intent = Intent(context, NotificationReceiver::class.java).apply {
-            putExtra(EXTRA_NOTE_ID, note.id)
-            putExtra(EXTRA_NOTE_CONTENT, note.content)
-        }
+            val intent = Intent(context, NotificationReceiver::class.java).apply {
+                putExtra(EXTRA_NOTE_ID, note.id)
+                putExtra(EXTRA_NOTE_CONTENT, note.content)
+            }
 
-        val pendingIntent = PendingIntent.getBroadcast(
-            context,
-            note.id, // Используем ID заметки как requestCode
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                note.id, // Используем ID заметки как requestCode
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
 
-        // Планируем точный будильник (ВАЖНО для уведомлений по времени)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (alarmManager.canScheduleExactAlarms()) {
+            // Планируем точный будильник (ВАЖНО для уведомлений по времени)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (alarmManager.canScheduleExactAlarms()) {
+                    alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        triggerTime,
+                        pendingIntent
+                    )
+                }
+            } else {
                 alarmManager.setExactAndAllowWhileIdle(
                     AlarmManager.RTC_WAKEUP,
                     triggerTime,
                     pendingIntent
                 )
             }
-        } else {
-            alarmManager.setExactAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                triggerTime,
-                pendingIntent
-            )
+        } catch (e: Exception) {
+            // Логируем ошибку, но не крашим приложение
+            e.printStackTrace()
         }
     }
 
@@ -80,14 +85,19 @@ class AlarmScheduler(private val context: Context) {
      * @param noteId ID заметки для отмены
      */
     fun cancelNotification(noteId: Int) {
-        val intent = Intent(context, NotificationReceiver::class.java)
-        val pendingIntent = PendingIntent.getBroadcast(
-            context,
-            noteId,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        alarmManager.cancel(pendingIntent)
+        try {
+            val intent = Intent(context, NotificationReceiver::class.java)
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                noteId,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            alarmManager.cancel(pendingIntent)
+        } catch (e: Exception) {
+            // Логируем ошибку, но не крашим приложение
+            e.printStackTrace()
+        }
     }
 
     /**

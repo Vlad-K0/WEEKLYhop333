@@ -167,19 +167,30 @@ class NoteViewModel(
         startTime: LocalTime?,
         groupId: Int? = null
     ) = viewModelScope.launch {
-        saveNoteUseCase(id, date, content, startTime, groupId)
-        
-        // Планируем уведомление если есть время
-        if (startTime != null) {
-            val note = Note(
-                id = id,
-                content = content,
-                date = date,
-                isDone = false,
-                startTime = startTime,
-                groupId = groupId
-            )
-            scheduleNotificationUseCase(note)
+        try {
+            // Сохраняем заметку и получаем реальный ID (для новых заметок Room генерирует ID)
+            val savedNoteId = saveNoteUseCase(id, date, content, startTime, groupId)
+            
+            // Управление уведомлениями
+            if (startTime != null) {
+                // Планируем уведомление с РЕАЛЬНЫМ ID после сохранения
+                val note = Note(
+                    id = savedNoteId.toInt(), // Используем ID полученный после сохранения
+                    content = content,
+                    date = date,
+                    isDone = false,
+                    startTime = startTime,
+                    groupId = groupId
+                )
+                scheduleNotificationUseCase(note)
+            } else if (id != 0) {
+                // Если редактируем существующую заметку (id != 0) и время удалено - отменяем уведомление
+                cancelNotificationUseCase(id)
+            }
+        } catch (e: Exception) {
+            // Логируем ошибку и показываем пользователю
+            e.printStackTrace()
+            _uiState.update { it.copy(error = "Ошибка при сохранении: ${e.message}") }
         }
     }
     

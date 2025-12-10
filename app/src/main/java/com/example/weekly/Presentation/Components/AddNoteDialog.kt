@@ -52,8 +52,8 @@ fun AddNoteDialog(
     var selectedGroupId by remember { mutableStateOf(noteToEdit?.groupId) }
     var groupDropdownExpanded by remember { mutableStateOf(false) }
 
-    //флаг для показа диалога выбора времени
-    var showTimePicker by remember { mutableStateOf(isTask && noteToEdit?.startTime == null) }
+    //флаг для показа диалога выбора времени (не открываем автоматически)
+    var showTimePicker by remember { mutableStateOf(false) }
 
     //флаг для показа календаря
     var showDatePicker by remember { mutableStateOf(false) }
@@ -200,12 +200,18 @@ fun AddNoteDialog(
             TextButton(
                 onClick = {
                     if (noteContent.isNotBlank()) {
-                        val finalTime = if (isTask) selectedTime else null
+                        // При редактировании сохраняем текущее выбранное время
+                        // При создании нового дела - только если это дело (isTask)
+                        val finalTime = when {
+                            isEditing -> selectedTime  // При редактировании всегда сохраняем selectedTime
+                            isTask -> selectedTime     // При создании дела сохраняем время
+                            else -> null               // Обычная заметка без времени
+                        }
                         onSaveNote(noteId, selectedDay, noteContent.trim(), finalTime, selectedGroupId)
                     }
                 },
-                // Кнопка активна только если текст введён (и время выбрано, если это дело)
-                enabled = noteContent.isNotBlank() && (!isTask || selectedTime != null)
+                // Кнопка активна если текст введён, и если это новое дело - должно быть выбрано время
+                enabled = noteContent.isNotBlank() && (!isTask || isEditing || selectedTime != null)
             ) {
                 Text(if (isEditing) "Сохранить" else "Добавить", style = MaterialTheme.typography.labelLarge)
             }

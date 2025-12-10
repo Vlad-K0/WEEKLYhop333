@@ -11,7 +11,7 @@ class SaveNoteUseCase(private val repository: NoteRepository) {
         content: String, 
         startTime: LocalTime?,
         groupId: Int? = null
-    ) {
+    ): Long {
         val oldNote = if (id != 0) repository.getNoteById(id) else null
 
         val newNote = Note(
@@ -23,6 +23,6 @@ class SaveNoteUseCase(private val repository: NoteRepository) {
             groupId = groupId
         )
 
-        repository.saveNote(newNote)
+        return repository.saveNote(newNote)
     }
 }

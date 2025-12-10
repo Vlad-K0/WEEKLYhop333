@@ -22,8 +22,15 @@ class NoteRepositoryImpl @Inject constructor(private val dao: NoteDao) : NoteRep
         return dao.getNoteById(noteId)?.toDomain()
     }
 
-    override suspend fun saveNote(note: Note) {
-        dao.insert(note.toEntity())
+    override suspend fun saveNote(note: Note): Long {
+        // Если id == 0, это новая заметка, insert вернет новый ID
+        // Если id != 0, это обновление существующей
+        return if (note.id == 0) {
+            dao.insert(note.toEntity())
+        } else {
+            dao.update(note.toEntity())
+            note.id.toLong()
+        }
     }
 
     override suspend fun deleteNote(note: Note) {

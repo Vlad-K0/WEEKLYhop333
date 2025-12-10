@@ -17,9 +17,9 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface NoteDao {
 
-    // ⭐️ Вставка новой заметки. Если конфликт по ID — заменяем существующую.
+    // ⭐️ Вставка новой заметки. Возвращает ID вставленной записи.
     @Insert(onConflict = OnConflictStrategy.Companion.REPLACE)
-    suspend fun insert(note: NoteEntity)
+    suspend fun insert(note: NoteEntity): Long
 
     // Обновление существующей заметки
     @Update
@@ -36,7 +36,7 @@ interface NoteDao {
 
     // ⭐️ Получение заметки по ID
     @Query("SELECT * FROM notes WHERE id = :id")
-    fun getNoteById(id: Int): NoteEntity?
+    suspend fun getNoteById(id: Int): NoteEntity?
 
     // Возвращает все заметки, отсортированные по дню, времени начала и содержимому
     // Flow позволяет наблюдать за изменениями в реальном времени
